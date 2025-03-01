@@ -1,7 +1,7 @@
 [
   {
     "index": 1,
-    "timestamp": 1740790553884,
+    "timestamp": 1740775520775,
     "transactions": [
       {
         "id": 0,
@@ -15,7 +15,7 @@
   },
   {
     "index": 1,
-    "timestamp": 1740790490366,
+    "timestamp": 1740775476134,
     "transactions": [
       {
         "id": 0,
@@ -29,7 +29,7 @@
   },
   {
     "index": 1,
-    "timestamp": 1740790263077,
+    "timestamp": 1740772944856,
     "transactions": [
       {
         "id": 0,
@@ -40,35 +40,5 @@
     "previousBlockHash": "0",
     "creatorNodeUrl": null,
     "creatorReputation": null
-  },
-  {
-    "id": 4,
-    "tid": 1,
-    "gid": 1,
-    "hid": 1,
-    "location": "oran",
-    "startDate": 20250227,
-    "endDate": 20250229,
-    "price": 242424
-  },
-  {
-    "id": 5,
-    "tid": 1,
-    "gid": 2,
-    "hid": 1,
-    "location": "oran",
-    "startDate": 20250227,
-    "endDate": 20250229,
-    "price": 242424
-  },
-  {
-    "id": 6,
-    "tid": 1,
-    "gid": 3,
-    "hid": 1,
-    "location": "oran",
-    "startDate": 20250227,
-    "endDate": 20250229,
-    "price": 72
   }
 ]

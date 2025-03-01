@@ -100,8 +100,8 @@ class TripPlanner {
 
 
 
+console.log("hello world")
 tripPlanner = new TripPlanner()
-console.log("starting . . ." + process.argv[2])
-if(process.argv[2] == "house")  tripPlanner.addTransportation(parseInt(process.argv[3],10),process.argv[4],parseInt(process.argv[5],10),parseInt(process.argv[6],10),parseInt(process.argv[7],10))
-if(process.argv[2] == "guide") tripPlanner.addGuiding(process.argv[3],process.argv[4],process.argv[5],process.argv[6],process.argv[7])
-if(process.argv[2] == "transport") tripPlanner.addTransportation(process.argv[3],process.argv[4],process.argv[5],process.argv[6],process.argv[7])
+tripPlanner.addGuiding(12,"oran",20250227,20250229,12)
+tripPlanner.addHousing(12,"oran",20250225,20250229,12)
+tripPlanner.addTransportation(12,"oran",20250227,20250228,12)

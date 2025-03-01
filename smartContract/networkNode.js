@@ -23,7 +23,8 @@ app.get('/blockchain', function (req, res){
 
 app.post('/addHost', async function (req, res){
     const hostData = req.body.hostData;
-   // console.log(req.body.hostData)
+    tripChain.addHost(hostData)
+   /* console.log(req.body.hostData)
     await exec('node smartContract.js', (error, stdout, stderr) => {
         if (error) {
             console.error(`Error: ${error.message}`);
@@ -35,5 +36,5 @@ app.post('/addHost', async function (req, res){
         }
         console.log(`Output: ${stdout}`);
         //res.send(stdout);
-    });
-});
+    });*/
+}); 
