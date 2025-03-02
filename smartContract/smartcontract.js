@@ -1,11 +1,18 @@
 const fs = require('fs');
+const crypto = require('crypto');
+const { generateKeyPairSync, createSign, createVerify } = crypto;
+
 
 class TripPlanner {
-    constructor() {
+    constructor(url) {
         this.housesFile = 'db/houses.json';
         this.transportFile = 'db/transport.json';
         this.guidesFile = 'db/guides.json';
         this.tripsFile = 'db/trips.json';
+        this.privateKey =JSON.parse(fs.readFileSync("keys.json", 'utf8')).privateKey
+        this.creatorNodeUrl=url
+        console.log(this.privateKey)
+
     }
 
     readData(file) {
@@ -40,7 +47,23 @@ class TripPlanner {
 
     addPlannedTrip(tid, gid, hid, location, startDate, endDate, price) {
         let trips = this.readData(this.tripsFile);
-        trips.push({ id: trips.length + 1, tid, gid, hid, location, startDate, endDate, price });
+        const tripData={ tid, gid, hid, location, startDate, endDate, price }
+        const previousBlockHash=trips[0].hash
+        const currentBlockData = {
+                index: trips.length + 1,
+                timestamp: Date.now(),
+                transactions: tripData,
+                creatorNodeUrl:  this.creatorNodeUrl,
+                previousBlockHash: previousBlockHash,
+                //creatorReputation: isGenesis ? null : creatorReputation 
+             }
+        const dataAsString =JSON.stringify(currentBlockData);
+        const sign = createSign("SHA256");
+        sign.update(dataAsString);
+        sign.end();
+        const hash = sign.sign(this.privateKey, "hex");
+        currentBlockData["hash"]=hash
+        trips.unshift(currentBlockData);
         this.writeData(this.tripsFile, trips);
     }
 
@@ -99,9 +122,9 @@ class TripPlanner {
 
 
 
-
-tripPlanner = new TripPlanner()
+process.env.NODE_OPTIONS = "--openssl-legacy-provider";
+tripPlanner = new TripPlanner(process.argv[8])
 console.log("starting . . ." + process.argv[2])
-if(process.argv[2] == "house")  tripPlanner.addTransportation(parseInt(process.argv[3],10),process.argv[4],parseInt(process.argv[5],10),parseInt(process.argv[6],10),parseInt(process.argv[7],10))
+if(process.argv[2] == "house")  tripPlanner.addHousing(parseInt(process.argv[3],10),process.argv[4],parseInt(process.argv[5],10),parseInt(process.argv[6],10),parseInt(process.argv[7],10))
 if(process.argv[2] == "guide") tripPlanner.addGuiding(process.argv[3],process.argv[4],process.argv[5],process.argv[6],process.argv[7])
 if(process.argv[2] == "transport") tripPlanner.addTransportation(process.argv[3],process.argv[4],process.argv[5],process.argv[6],process.argv[7])

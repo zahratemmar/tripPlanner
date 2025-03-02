@@ -2,12 +2,29 @@ const fs = require('fs');
 
 const { TextEncoder, TextDecoder } = require('util');
 const { exec } = require('child_process');
+const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
+const { generateKeyPairSync, createSign, createVerify } = crypto;
+
 const inputFilePath = "output.bin";  
 
  
  
- function Blockchain(){
+ function Blockchain(nodeUrl){
     this.chainlength=0
+    const { privateKey, publicKey } = generateKeyPairSync("rsa", {
+        modulusLength: 2048,
+        publicKeyEncoding: { type: "spki", format: "pem" },
+        privateKeyEncoding: { type: "pkcs8", format: "pem" }
+      });
+      /*console.log(typeof publicKey)
+      const sign = createSign("SHA256");
+      sign.update("hello");
+      sign.end();
+      const signature = sign.sign(privateKey, "hex");
+      console.log(signature)
+        */
+
     fs.readFile(inputFilePath, 'utf8', (err, data) => {
         if (err) {
             console.error("Error reading file:", err);
@@ -18,14 +35,21 @@ const inputFilePath = "output.bin";
         id : 0,
         data : data
     }];
-    this.currentNodeUrl = "currentNodeUrl";
+    this.currentNodeUrl = nodeUrl;
     this.currentNodeReputation = 0; 
     this.currentNodeRoles = null;
     this.networkNodes = [];
     this.createNewBlock('0' , '0', true, null, null);
+    fs.writeFile("keys.json",JSON.stringify({publicKey, privateKey}), (err) => {
+        if (err) {
+            console.error("Error writing file:", err);
+            return;
+        } 
+
+      });
     });
 }
-
+ 
 Blockchain.prototype.createNewBlock = function(previousBlockHash, hash, isGenesis = false, creatorNodeUrl, creatorReputation) {
     const newBlock = {
         index: this.chainlength + 1,
@@ -38,7 +62,7 @@ Blockchain.prototype.createNewBlock = function(previousBlockHash, hash, isGenesi
     };
     this.pendingTransactions = [];
     this.chainlength++;
-    this.updateJsonFile("db/trips.json",newBlock,false)
+    this.updateJsonFile("db/trips.json",newBlock,true)
     return newBlock;
 };
 
@@ -81,12 +105,12 @@ Blockchain.prototype.execute = async function(houseData) {
                     return;
                 }   
                 console.log("temp ready")
-                const command = "node smartContract.js house "+houseData.id+" "+houseData.location+" "+houseData.startDate+" "+houseData.endDate+" "+houseData.price;
+                const command = "node smartContract.js house "+houseData.id+" "+houseData.location+" "+houseData.startDate+" "+houseData.endDate+" "+houseData.price+" "+this.currentNodeUrl;
                 exec(command, (error, stdout, stderr) => {
                     if (error) {
                         console.error(`Error: ${error.message}`);
                         return;
-                    } 
+                    }  
                     if (stderr) {
                         console.error(`Stderr: ${stderr}`);
                         return;

@@ -6,7 +6,8 @@ let vote_first_round = [];
 let leaders = [];
 global.finalLeader = null;
 const port = process.argv[2];
-const tripChain= new Blockchain();
+const nodeUrl="localhost:"+port
+const tripChain= new Blockchain(nodeUrl);
 const app = express();
 app.use(bodyParser.json());  
 app.use(express.json());
