@@ -6,7 +6,7 @@ const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 const { generateKeyPairSync, createSign, createVerify } = crypto;
 
-const inputFilePath = "output.bin";  
+const inputFilePath = "smartContract.bin";  
 
  
  
@@ -17,6 +17,8 @@ const inputFilePath = "output.bin";
         publicKeyEncoding: { type: "spki", format: "pem" },
         privateKeyEncoding: { type: "pkcs8", format: "pem" }
       });
+      this.privateKey=privateKey;
+      this.publicKey=publicKey;
       /*console.log(typeof publicKey)
       const sign = createSign("SHA256");
       sign.update("hello");
@@ -45,7 +47,6 @@ const inputFilePath = "output.bin";
             console.error("Error writing file:", err);
             return;
         } 
-
       });
     });
 }
@@ -71,12 +72,12 @@ Blockchain.prototype.createNewBlock = function(previousBlockHash, hash, isGenesi
  Blockchain.prototype.addHost = async function(hostData) {
   //  await this.updateJsonFile("db/houses.json",hostData,true);
     console.log("awaitttt")
-    await this.execute(hostData);
+    await this.execute(hostData,"house");
 
 }
 
 
-Blockchain.prototype.execute = async function(houseData) {
+Blockchain.prototype.execute = async function(houseData,service) {
     console.log("executing")
     return new Promise((resolve, reject) => {
         console.log("heloooo")
@@ -105,7 +106,7 @@ Blockchain.prototype.execute = async function(houseData) {
                     return;
                 }   
                 console.log("temp ready")
-                const command = "node smartContract.js house "+houseData.id+" "+houseData.location+" "+houseData.startDate+" "+houseData.endDate+" "+houseData.price+" "+this.currentNodeUrl;
+                const command = "node temp.js "+service+" "+houseData.id+" "+houseData.location+" "+houseData.startDate+" "+houseData.endDate+" "+houseData.price+" "+this.currentNodeUrl;
                 exec(command, (error, stdout, stderr) => {
                     if (error) {
                         console.error(`Error: ${error.message}`);
@@ -116,6 +117,17 @@ Blockchain.prototype.execute = async function(houseData) {
                         return;
                     }
                     console.log(`Output: ${stdout}`);
+                    fs.unlink('temp.js', (err) => {
+                        if (err) {
+                            console.error('Error deleting file:', err);
+                        } else {
+                            console.log('File deleted successfully');
+                            return {
+                                status : 1,
+                                message : "service saved succesfully"
+                            }
+                        }
+                    });
                 }); 
     
             });

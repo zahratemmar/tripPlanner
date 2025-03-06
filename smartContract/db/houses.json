@@ -1,1 +1,34 @@
-[]
+[
+  {
+    "id": 1,
+    "hid": 12,
+    "location": "oran",
+    "startDate": 20250227,
+    "endDate": 20250229,
+    "price": 12
+  },
+  {
+    "id": 2,
+    "hid": 12,
+    "location": "oran",
+    "startDate": 20250227,
+    "endDate": 20250229,
+    "price": 12
+  },
+  {
+    "id": 3,
+    "hid": 12,
+    "location": "oran",
+    "startDate": 20250227,
+    "endDate": 20250229,
+    "price": 12
+  },
+  {
+    "id": 4,
+    "hid": 12,
+    "location": "oran",
+    "startDate": 20250227,
+    "endDate": 20250229,
+    "price": 12
+  }
+]

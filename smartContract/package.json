@@ -4,7 +4,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon  networkNode.js 3001 --watch blockchain.js --watch networkNode.js"
+    "start": "nodemon  networkNode.js 3001 --watch blockchain.js --watch networkNode.js",
+    "start2": "nodemon  networkNode.js 3002 3001 --watch blockchain.js --watch networkNode.js",
+    "start3": "nodemon  networkNode.js 3003  3001 --watch blockchain.js --watch networkNode.js"
   },
   "author": "",
   "license": "ISC",
