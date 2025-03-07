@@ -28,3 +28,4 @@ const inputFile = "smartcontract.js";
 const outputFile = "output.bin"; 
 
 fileToBytes(inputFile, outputFile);
+

@@ -125,6 +125,7 @@ app.post('/register', function (req, res) {
         const b = networkNodeUrl.url !== nodeUrl;  
         console.log(b);  
         if(a && b) tripChain.networkNodes.push(networkNodeUrl);
+        reputationManager.updateNodeReputation(networkNodeUrl.url, defaultReputation, roles);
     });
 
     res.json({
@@ -153,10 +154,7 @@ app.post('/register', function (req, res) {
    };
    return rp(consensus)
    .then(data=>{
-        res.json({
-            note : "consensus starts"
-        });
-    console.log("consensus axios sent")
+    console.log(data)
  });}
 });
 
@@ -188,8 +186,13 @@ app.post('/reset-consensus', function(req, res) {
     leaders = [];
     validatorsList = [];
     finalLeader = null;
+    const allNodes = [...tripChain.networkNodes, {
+        url : tripChain.currentNodeUrl,
+        role: roles,
+        publicKey : tripChain.publicKey
+    }]
     // Prepare promises to call '/create-consensus-group' on each network node
-    const createConsensusPromises = tripChain.networkNodes.map(networkNodeUrl => {
+    const createConsensusPromises = allNodes.map(networkNodeUrl => {
         return rp({
             uri: networkNodeUrl.url + '/create-consensus-group',
             method: 'GET',
@@ -201,7 +204,7 @@ app.post('/reset-consensus', function(req, res) {
     Promise.all(createConsensusPromises)
         .then(() => {
             // Prepare promises to call '/select-top-validators' on each network node
-            const selectTopValidatorsPromises = tripChain.networkNodes.map(networkNodeUrl => {
+            const selectTopValidatorsPromises = allNodes.map(networkNodeUrl => {
                 return rp({
                     uri: networkNodeUrl.url + '/vote-first-Round',
                     method: 'GET',
@@ -217,7 +220,7 @@ app.post('/reset-consensus', function(req, res) {
             vote_first_round = responses.map(response => response.topValidators);
 
             // Prepare promises to call '/potential-leader' on each network node
-            const potentialLeaderPromises = tripChain.networkNodes.map(networkNodeUrl => {
+            const potentialLeaderPromises = allNodes.map(networkNodeUrl => {
                 return rp({
                     uri: networkNodeUrl.url + '/leader',
                     method: 'GET',
@@ -230,12 +233,14 @@ app.post('/reset-consensus', function(req, res) {
         .then(responses => {
             // Extract leader from each response
             global.leader = responses.map(response => response.leader);
-
+            console.log("leader in the rset is : ")
+            console.log(global.leader)
             // Prepare promises to call '/announce-final-leader' on each network node
-            const announceFinalLeaderPromises = tripChain.networkNodes.map(networkNodeUrl => {
+            const announceFinalLeaderPromises = allNodes.map(networkNodeUrl => {
                 return rp({
                     uri: networkNodeUrl.url + '/receive-leader-and-vote-final-leader',
                     method: 'POST',
+                    body : {leader :global.leader },
                     json: true,
                 });
             });
@@ -262,6 +267,7 @@ app.post('/reset-consensus', function(req, res) {
 
 
 app.get('/create-consensus-group', function(req, res) {
+    console.log("starting create-consensus-group")
     // Start measuring execution time
     const startExecution = performance.now();
 
@@ -274,7 +280,13 @@ app.get('/create-consensus-group', function(req, res) {
     
     // Retrieve all node reputations for broadcasting
     const allNodesReputation = reputationManager.getNodeReputations();
-    
+    const allNodes = [...tripChain.networkNodes, {
+        url : tripChain.currentNodeUrl,
+        role: roles,
+        publicKey : tripChain.publicKey
+    }]
+    console.log("all nodes :") 
+    console.log(allNodes)
     // Determine the consensus validators 
     consensusManager.validators = consensusManager.getConsensusGroup(allNodesReputation);
     console.log("validators : 88888888888888888888888888888888888888888888888888888888888888888888888")
@@ -282,7 +294,7 @@ app.get('/create-consensus-group', function(req, res) {
     vote_first_round.push(consensusManager.validators);
     // console.log('validators choosen by the current node: ',vote_first_round)
     // Prepare promises for broadcasting validators
-    const broadcastPromises = tripChain.networkNodes.map(networkNodeUrl => {
+    const broadcastPromises = allNodes.map(networkNodeUrl => {
         return rp({
             uri: networkNodeUrl.url + '/receive-validators',
             method: 'POST',
@@ -366,8 +378,8 @@ app.get('/vote-first-Round', function(req, res) {
         
         return acc;
     }, {});
-    
-    //console.log(nodeCounts);
+    console.log("*************************************************************************************************************")
+    console.log(nodeCounts);
     // Find the top two nodes with the highest counts
     const sortedNodes = Object.keys(nodeCounts).sort((a, b) => {
         // Sort first by count, then by weight if counts are equal
@@ -385,12 +397,19 @@ app.get('/vote-first-Round', function(req, res) {
         weight: nodeCounts[node].weight,
         reputationScore: nodeCounts[node].reputationScore,
     }));
-
+    console.log("top 2 : ")
+    console.log(topTwoNodes)
     first_round_validators.push(topTwoNodes);
     // console.log("Top two nodes with the most appearances:", topTwoNodes);
 
     // Prepare promises for broadcasting the topTwoNodes
-    const broadcastPromises = tripChain.networkNodes.map(networkNodeUrl => {
+    const allNodes = [...tripChain.networkNodes, {
+        url : tripChain.currentNodeUrl,
+        role: roles,
+        publicKey : tripChain.publicKey
+    }]
+
+    const broadcastPromises = allNodes.map(networkNodeUrl => {
         return rp({
             uri: networkNodeUrl.url + '/receive-top-two-nodes',
             method: 'POST',
@@ -443,7 +462,7 @@ app.get('/vote-first-Round', function(req, res) {
 // Endpoint to receive top two nodes
 app.post('/receive-top-two-nodes', function(req, res) {
     const { topTwoNodes } = req.body;
-    //console.log('Received top two nodes:', topTwoNodes);
+    console.log('Received top two nodes:', topTwoNodes);
     first_round_validators.push(topTwoNodes);
     res.status(200).json({ message: 'Top two nodes received and processed successfully.' });
 });
@@ -466,10 +485,17 @@ app.get('/leader', function(req, res){
     if (sortedValidators.length > 1 && sortedValidators[0].weight === sortedValidators[1].weight) {
     // Select the leader with the highest weight
     global.leader = sortedValidators[0];
-
+    console.log("leaderrr : ")
+        console.log(global.leader)
     // console.log('selected leader is: ',leader);
      // Broadcast the leader to the network nodes (assuming tripChain.networkNodes is an array of network node URLs)
-     const broadcastPromises = tripChain.networkNodes.map(networkNodeUrl => {
+     const allNodes = [...tripChain.networkNodes, {
+        url : tripChain.currentNodeUrl,
+        role: roles,
+        publicKey : tripChain.publicKey
+    }]
+
+     const broadcastPromises = allNodes.map(networkNodeUrl => {
         return rp({
             uri: networkNodeUrl.url + '/broadcast-leader',
             method: 'POST',
@@ -518,7 +544,9 @@ app.get('/leader', function(req, res){
         });
     }else{
         global.leader = consensusManager.selectLeader(first_round_validators);
-        const broadcastPromises = tripChain.networkNodes.map(networkNodeUrl => {
+        console.log("leader of the else ")
+        console.log(global.leader)
+        const broadcastPromises = allNodes.map(networkNodeUrl => {
             return rp({
                 uri: networkNodeUrl.url + '/receive-leader-and-vote-final-leader',
                 method: 'POST',
@@ -557,42 +585,40 @@ app.post('/receive-leader-and-vote-final-leader', function(req, res) {
 
      // Start measuring CPU usage
      const startCPUUsage = process.cpuUsage();
-    const { leader } = req.body;
+    const leader = req.body.leader;
     if (!leader ) {
         //console.error('Invalid leader data received:', req.body);
         return res.status(400).json({ message: 'Invalid leader data received.' });
     }
     
 
-    //console.log('Leader object received:', leader);
+    console.log('Leader object received:', leader);
 
-    leaders.push({
-        leader: leader.validator // Storing the URL string directly
-    });
+    leaders=leader.map(ld => ld.nodeUrl);
 
     if (leaders.length === 0) {
         return res.status(404).json({ error: "No leader data available." });
     }
-
+    console.log("leadersss") 
+    console.log(leaders)
     // Count each leader's appearances
     const leaderCounts = leaders.reduce((acc, leader) => {
-        const leaderKey = JSON.stringify(leader);  // Convert leader object to a string to use as a key
-        acc[leaderKey] = (acc[leaderKey] || 0) + 1;
+        acc[leader] = (acc[leader] || 0) + 1;
         return acc;
     }, {});
+    console.log('leader from counts : ')
+    console.log(leaderCounts)
 
-    // Find the leader with the maximum count, and highest reputation in case of a tie
-    const finalLeader = Object.entries(leaderCounts).reduce((max, [leaderString, count]) => {
-        const leader = JSON.parse(leaderString);  // Parse the string back to an object
-        // Include count in the leader object and compare reputationScore in case of count tie
-        if (count > max.count || (count === max.count && leader.reputationScore > max.reputationScore)) {
-            return { ...leader, count: count };  // Flatten the structure to include count directly
-        }
-        return max;
-    }, { reputationScore: -1, count: 0 }); // Set initial max object with count and low reputationScore
+    const finalLeader = Object.entries(leaderCounts).reduce((max, [url, count]) => {
+        return count > max.count ? { url, count } : max;
+    }, { url: "", count: 0 });
+    
+    
+
+
 
     // Set the global finalLeader (optional, only if you need it outside this scope)
-    global.leader = finalLeader;
+    global.leader = finalLeader.url;
 
     // Respond with the final leader
     if (!leader || leader.reputationScore === -1) {
@@ -623,15 +649,13 @@ app.post('/receive-leader-and-vote-final-leader', function(req, res) {
   
       // Get CPU usage
       const cpuUsage = (endCPUUsage.user + endCPUUsage.system) / 1000;
-
-    res.json({
-        message: "Final leader determined based on the highest number of appearances, with ties broken by reputation score.",
-        finalLeader: leader, // This should now directly return the leader object in the desired format
-    });
+    console.log("final leader iss : ")
+    console.log(global.leader)
     res.status(200).json({ message: 'Leader received.', leader: leader ,
         executionTime: executionTime + " ms",
         cpuUsage: cpuUsage + " ms"
     });
+    console.log
 });
 
 
