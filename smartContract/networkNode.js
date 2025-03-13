@@ -11,6 +11,7 @@ const reputationManager = new Reputation();
 defaultReputation = 10;
 let vote_first_round = [];
 let leaders = [];
+let first_round_validators = []
 global.finalLeader = null;
 const roles = "nromal";
 const port = process.argv[2]; 
@@ -42,6 +43,13 @@ app.post('/addHost', async function (req, res){
     const hostData = req.body.hostData;
     tripChain.addHost(hostData)
 }); 
+
+
+app.post('/addParticipation', function (req, res){
+    console.log("adding parrticipators")
+    const { participationData } = req.body;
+    tripChain.addParticipation(participationData);
+});
 
 
 app.post('/register-and-broadcast', function (req, res) {
@@ -136,7 +144,7 @@ app.post('/register', function (req, res) {
 
 
     //to test the consensus
-    if(allNetworkNodes.length>2){
+/*    if(allNetworkNodes.length>2){
         console.log("consensus starts")
         for(let i = 0; i < 10; i++) {          
             for(let j = 0; j < 10000000; j++) {
@@ -155,7 +163,7 @@ app.post('/register', function (req, res) {
    return rp(consensus)
    .then(data=>{
     console.log(data)
- });}
+ });}*/
 });
 
 
@@ -179,7 +187,7 @@ function register(address){
 
 
 app.post('/reset-consensus', function(req, res) {
-    // Reset consensus variables
+
     consensusManager.validators = [];
     vote_first_round = [];
     global.leader = null;
@@ -191,7 +199,7 @@ app.post('/reset-consensus', function(req, res) {
         role: roles,
         publicKey : tripChain.publicKey
     }]
-    // Prepare promises to call '/create-consensus-group' on each network node
+
     const createConsensusPromises = allNodes.map(networkNodeUrl => {
         return rp({
             uri: networkNodeUrl.url + '/create-consensus-group',
@@ -200,10 +208,8 @@ app.post('/reset-consensus', function(req, res) {
         });
     }); 
 
-    // Execute all create consensus group requests
     Promise.all(createConsensusPromises)
         .then(() => {
-            // Prepare promises to call '/select-top-validators' on each network node
             const selectTopValidatorsPromises = allNodes.map(networkNodeUrl => {
                 return rp({
                     uri: networkNodeUrl.url + '/vote-first-Round',
@@ -215,11 +221,7 @@ app.post('/reset-consensus', function(req, res) {
             return Promise.all(selectTopValidatorsPromises);
         })
         .then(responses => {
-            // Extract topValidators from each response
-            console.log("responses of vote first round r here ")
             vote_first_round = responses.map(response => response.topValidators);
-
-            // Prepare promises to call '/potential-leader' on each network node
             const potentialLeaderPromises = allNodes.map(networkNodeUrl => {
                 return rp({
                     uri: networkNodeUrl.url + '/leader',
@@ -231,11 +233,7 @@ app.post('/reset-consensus', function(req, res) {
             return Promise.all(potentialLeaderPromises);
         })
         .then(responses => {
-            // Extract leader from each response
             global.leader = responses.map(response => response.leader);
-            console.log("leader in the rset is : ")
-            console.log(global.leader)
-            // Prepare promises to call '/announce-final-leader' on each network node
             const announceFinalLeaderPromises = allNodes.map(networkNodeUrl => {
                 return rp({
                     uri: networkNodeUrl.url + '/receive-leader-and-vote-final-leader',
@@ -248,10 +246,7 @@ app.post('/reset-consensus', function(req, res) {
             return Promise.all(announceFinalLeaderPromises);
         })
         .then(responses => {
-            // Extract finalLeader from each response
             finalLeader = responses.map(response => response.finalLeader);
-
-            // Send the final response including the top validators, leader, and final leader
             res.status(200).json({
                 message: "Consensus group created, broadcasted successfully, top validators selected, potential leader chosen, and final leader announced.",
                 vote_first_round:  vote_first_round,
@@ -267,33 +262,21 @@ app.post('/reset-consensus', function(req, res) {
 
 
 app.get('/create-consensus-group', function(req, res) {
-    console.log("starting create-consensus-group")
-    // Start measuring execution time
     const startExecution = performance.now();
-
-    // Start measuring CPU usage
     const startCPUUsage = process.cpuUsage();
 
     if (tripChain.networkNodes.length === 0) { 
         return res.status(404).json({ error: "No nodes registered in the network." });
     }
     
-    // Retrieve all node reputations for broadcasting
     const allNodesReputation = reputationManager.getNodeReputations();
     const allNodes = [...tripChain.networkNodes, {
         url : tripChain.currentNodeUrl,
         role: roles,
         publicKey : tripChain.publicKey
     }]
-    console.log("all nodes :") 
-    console.log(allNodes)
-    // Determine the consensus validators 
     consensusManager.validators = consensusManager.getConsensusGroup(allNodesReputation);
-    console.log("validators : 88888888888888888888888888888888888888888888888888888888888888888888888")
-    console.log(consensusManager.validators)
     vote_first_round.push(consensusManager.validators);
-    // console.log('validators choosen by the current node: ',vote_first_round)
-    // Prepare promises for broadcasting validators
     const broadcastPromises = allNodes.map(networkNodeUrl => {
         return rp({
             uri: networkNodeUrl.url + '/receive-validators',
@@ -304,7 +287,6 @@ app.get('/create-consensus-group', function(req, res) {
                     reputationScore: validator.reputationScore,
                     role: validator.role,
                     weight: validator.weight,
-                    //count: validator.count, // Include count
                 })),
             },
             json: true,
@@ -313,18 +295,10 @@ app.get('/create-consensus-group', function(req, res) {
 
     Promise.all(broadcastPromises)
     .then(data => {
-        // Stop measuring execution time
         const endExecution = performance.now();
-
-        // Stop measuring CPU usage
         const endCPUUsage = process.cpuUsage(startCPUUsage);
-
-        // Calculate execution time
         const executionTime = endExecution - startExecution;
-
-        // Get CPU usage
         const cpuUsage = (endCPUUsage.user + endCPUUsage.system) / 1000;
-        // Send the response once all broadcasts are successful 
         res.json({
             message: "Consensus group created and broadcasted successfully.",
             validators: consensusManager.validators,
@@ -333,41 +307,25 @@ app.get('/create-consensus-group', function(req, res) {
         });
     })
     .catch(error => {
-        // Handle errors from promises
         console.error('Error broadcasting validators', error);
         res.status(500).json({ error: "Failed to broadcast validators" });
     });
 });
 
-// Endpoint to receive validators
 app.post('/receive-validators', function(req, res) {
     const { validators } = req.body;
-    console.log("validators recieved")
     vote_first_round.push(validators);
-    // console.log('receive-validators', vote_first_round);
     res.status(200).json({ message: 'Validators received and stored.' });
 });
 
-let first_round_validators = []
-
-// Endpoint to select the top two validators
 app.get('/vote-first-Round', function(req, res) {
-     // Start measuring execution time
      const startExecution = performance.now();
-
-     // Start measuring CPU usage
      const startCPUUsage = process.cpuUsage();
-
-    // console.log('vote_first_round: ', vote_first_round);
-    // Count occurrences of each nodeUrl in the vote_first_round array
     const nodeCounts = vote_first_round.flat().reduce((acc, validator) => {
         const nodeUrl = validator.nodeUrl;
-        const weight = validator.weight; // Include the weight of the validator
+        const weight = validator.weight; 
         const reputationScore = validator.reputationScore;
-        
-        // Ensure the nodeUrl exists before processing
         if (nodeUrl) {
-            // Initialize or update the count and weight for each nodeUrl
             if (!acc[nodeUrl]) {
                 acc[nodeUrl] = { count: 0, weight ,reputationScore};
             }
@@ -378,60 +336,38 @@ app.get('/vote-first-Round', function(req, res) {
         
         return acc;
     }, {});
-    console.log("*************************************************************************************************************")
-    console.log(nodeCounts);
-    // Find the top two nodes with the highest counts
     const sortedNodes = Object.keys(nodeCounts).sort((a, b) => {
-        // Sort first by count, then by weight if counts are equal
         if (nodeCounts[b].count === nodeCounts[a].count) {
             return nodeCounts[b].weight - nodeCounts[a].weight;
         } else {
             return nodeCounts[b].count - nodeCounts[a].count;
         }
     });
-
-    // Extract top two nodes with counts and weights
     const topTwoNodes = sortedNodes.slice(0, 2).map(node => ({
         nodeUrl: node,
         count: nodeCounts[node].count,
         weight: nodeCounts[node].weight,
         reputationScore: nodeCounts[node].reputationScore,
     }));
-    console.log("top 2 : ")
-    console.log(topTwoNodes)
     first_round_validators.push(topTwoNodes);
-    // console.log("Top two nodes with the most appearances:", topTwoNodes);
-
-    // Prepare promises for broadcasting the topTwoNodes
     const allNodes = [...tripChain.networkNodes, {
         url : tripChain.currentNodeUrl,
         role: roles,
         publicKey : tripChain.publicKey
     }]
-
     const broadcastPromises = allNodes.map(networkNodeUrl => {
         return rp({
             uri: networkNodeUrl.url + '/receive-top-two-nodes',
             method: 'POST',
-            body: { topTwoNodes }, // Ensure topTwoNodes is sent correctly in the body
+            body: { topTwoNodes }, 
             json: true,
         });
     });
-
-    // Execute all broadcast promises
     Promise.all(broadcastPromises)
     .then(responses => {
-
-        // Stop measuring execution time
         const endExecution = performance.now();
-
-        // Stop measuring CPU usage
         const endCPUUsage = process.cpuUsage(startCPUUsage);
-
-        // Calculate execution time
         const executionTime = endExecution - startExecution;
-
-        // Get CPU usage
         const cpuUsage = (endCPUUsage.user + endCPUUsage.system) / 1000;
 
         res.json({ note: 'All top two nodes broadcasted successfully.',
@@ -440,18 +376,10 @@ app.get('/vote-first-Round', function(req, res) {
         });
     })
     .catch(error => {
-        // Stop measuring execution time in case of error
         const endExecution = performance.now();
-
-        // Stop measuring CPU usage in case of error
         const endCPUUsage = process.cpuUsage(startCPUUsage);
-
-        // Calculate execution time
         const executionTime = endExecution - startExecution;
-
-        // Get CPU usage
         const cpuUsage = (endCPUUsage.user + endCPUUsage.system) / 1000;
-        // Respond with error message
         res.status(500).json({ error: 'Error broadcasting top two nodes.',
         executionTime: executionTime + ' ms',
         cpuUsage: cpuUsage + ' ms',
@@ -459,36 +387,22 @@ app.get('/vote-first-Round', function(req, res) {
     });
 });
 
-// Endpoint to receive top two nodes
 app.post('/receive-top-two-nodes', function(req, res) {
     const { topTwoNodes } = req.body;
-    console.log('Received top two nodes:', topTwoNodes);
     first_round_validators.push(topTwoNodes);
     res.status(200).json({ message: 'Top two nodes received and processed successfully.' });
 });
 
 app.get('/leader', function(req, res){
-    
     if (!first_round_validators || first_round_validators.length === 0) {
         return res.status(404).json({ error: "Top two nodes not available." });
     }
-    // Start measuring execution time
     const startExecution = performance.now();
-
-    // Start measuring CPU usage
     const startCPUUsage = process.cpuUsage();
-    // console.log('Attempting to select leader with:',first_round_validators);
-    // Flatten the first_round_validators array if necessary (if it is nested)
     const flatValidators = first_round_validators.flat();
-    // Sort first_round_validators by weight in descending order
     const sortedValidators = flatValidators.sort((a, b) => b.weight - a.weight);
     if (sortedValidators.length > 1 && sortedValidators[0].weight === sortedValidators[1].weight) {
-    // Select the leader with the highest weight
     global.leader = sortedValidators[0];
-    console.log("leaderrr : ")
-        console.log(global.leader)
-    // console.log('selected leader is: ',leader);
-     // Broadcast the leader to the network nodes (assuming tripChain.networkNodes is an array of network node URLs)
      const allNodes = [...tripChain.networkNodes, {
         url : tripChain.currentNodeUrl,
         role: roles,
@@ -506,16 +420,9 @@ app.get('/leader', function(req, res){
 
     Promise.all(broadcastPromises)
         .then(data => {
-             // Stop measuring execution time
              const endExecution = performance.now();
-
-             // Stop measuring CPU usage
              const endCPUUsage = process.cpuUsage(startCPUUsage);
- 
-             // Calculate execution time
              const executionTime = endExecution - startExecution;
- 
-             // Get CPU usage
              const cpuUsage = (endCPUUsage.user + endCPUUsage.system) / 1000;
             res.json({
                 message: "Leader selected and broadcasted successfully.",
@@ -525,16 +432,9 @@ app.get('/leader', function(req, res){
             });
         })
         .catch(error => {
-            // Stop measuring execution time in case of error
             const endExecution = performance.now();
-
-            // Stop measuring CPU usage in case of error
             const endCPUUsage = process.cpuUsage(startCPUUsage);
-
-            // Calculate execution time
             const executionTime = endExecution - startExecution;
-
-            // Get CPU usage
             const cpuUsage = (endCPUUsage.user + endCPUUsage.system) / 1000;
             console.error('Error broadcasting leader', error);
             res.status(500).json({ error: "Failed to broadcast leader",
@@ -544,8 +444,6 @@ app.get('/leader', function(req, res){
         });
     }else{
         global.leader = consensusManager.selectLeader(first_round_validators);
-        console.log("leader of the else ")
-        console.log(global.leader)
         const broadcastPromises = allNodes.map(networkNodeUrl => {
             return rp({
                 uri: networkNodeUrl.url + '/receive-leader-and-vote-final-leader',
@@ -564,7 +462,6 @@ app.get('/leader', function(req, res){
             });
         })
         .catch(error => {
-            // Handle errors from promises
             console.error('Error broadcasting leader', error);
             res.status(500).json({ error: "Failed to broadcast leader" });
         }); 
@@ -574,89 +471,57 @@ app.get('/leader', function(req, res){
 
 app.post('/broadcast-leader', function(req, res) {
     const { leader } = req.body;
-    //console.log('Leader received:', leader);
     res.status(200).json({ message: 'Leader received.', leader: leader });
 });
 
-// This endpoint accumulates received validators
-app.post('/receive-leader-and-vote-final-leader', function(req, res) {
-     // Start measuring execution time
-     const startExecution = performance.now();
 
-     // Start measuring CPU usage
+app.post('/receive-leader-and-vote-final-leader', function(req, res) {
+     const startExecution = performance.now();
      const startCPUUsage = process.cpuUsage();
     const leader = req.body.leader;
     if (!leader ) {
-        //console.error('Invalid leader data received:', req.body);
         return res.status(400).json({ message: 'Invalid leader data received.' });
     }
-    
-
-    console.log('Leader object received:', leader);
-
     leaders=leader.map(ld => ld.nodeUrl);
-
     if (leaders.length === 0) {
         return res.status(404).json({ error: "No leader data available." });
     }
-    console.log("leadersss") 
-    console.log(leaders)
-    // Count each leader's appearances
     const leaderCounts = leaders.reduce((acc, leader) => {
         acc[leader] = (acc[leader] || 0) + 1;
         return acc;
     }, {});
-    console.log('leader from counts : ')
-    console.log(leaderCounts)
-
     const finalLeader = Object.entries(leaderCounts).reduce((max, [url, count]) => {
         return count > max.count ? { url, count } : max;
     }, { url: "", count: 0 });
-    
-    
-
-
-
-    // Set the global finalLeader (optional, only if you need it outside this scope)
     global.leader = finalLeader.url;
-
-    // Respond with the final leader
     if (!leader || leader.reputationScore === -1) {
-         // Stop measuring execution time in case of error
          const endExecution = performance.now();
-
-         // Stop measuring CPU usage in case of error
          const endCPUUsage = process.cpuUsage(startCPUUsage);
- 
-         // Calculate execution time
          const executionTime = endExecution - startExecution;
- 
-         // Get CPU usage
          const cpuUsage = (endCPUUsage.user + endCPUUsage.system) / 1000;
         return res.status(404).json({ error: "No valid leader found." ,
             executionTime: executionTime + " ms",
             cpuUsage: cpuUsage + " ms"
         });
     }
-      // Stop measuring execution time
       const endExecution = performance.now();
-
-      // Stop measuring CPU usage
       const endCPUUsage = process.cpuUsage(startCPUUsage);
-  
-      // Calculate execution time
       const executionTime = endExecution - startExecution;
-  
-      // Get CPU usage
       const cpuUsage = (endCPUUsage.user + endCPUUsage.system) / 1000;
-    console.log("final leader iss : ")
-    console.log(global.leader)
     res.status(200).json({ message: 'Leader received.', leader: leader ,
         executionTime: executionTime + " ms",
         cpuUsage: cpuUsage + " ms"
     });
-    console.log
 });
 
 
+
+
+
+app.post('/executePayments', function (req, res){
+
+   // tripChain.checkSmartContracts();
+
+ 
+});
 

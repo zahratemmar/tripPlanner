@@ -1,6 +1,8 @@
 const fs = require('fs');
 const crypto = require('crypto');
 const { generateKeyPairSync, createSign, createVerify } = crypto;
+const { v4: uuidv4 } = require('uuid');
+const { timeStamp } = require('console');
 
 
 class TripPlanner {
@@ -11,8 +13,6 @@ class TripPlanner {
         this.tripsFile = 'db/trips.json';
         this.privateKey =JSON.parse(fs.readFileSync("keys.json", 'utf8')).privateKey
         this.creatorNodeUrl=url
-        console.log(this.privateKey)
-
     }
 
     readData(file) {
@@ -24,38 +24,42 @@ class TripPlanner {
         fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
     }
 
-    addHousing(hid, location, startDate, endDate, price) {
+    addHousing(hid, location, startDate, endDate, price,spots) {
         let houses = this.readData(this.housesFile);
-        houses.push({ id: houses.length + 1, hid, location, startDate, endDate, price });
+        houses.push({ id: uuidv4(), hid, location, startDate, endDate, price ,spots,timestamp: Date.now(),
+        });
         this.writeData(this.housesFile, houses);
         this.checkTrips()
     }
 
-    addTransportation(tid, location, startDate, endDate, price) {
+    addTransportation(tid, location, startDate, endDate, price,spots) {
         let transport = this.readData(this.transportFile);
-        transport.push({ id: transport.length + 1, tid, location, startDate, endDate, price });
+        transport.push({ id: uuidv4(), tid, location, startDate, endDate, price ,spots,timestamp: Date.now()});
         this.writeData(this.transportFile, transport);
         this.checkTrips()
     }
 
-    addGuiding(gid, location, startDate, endDate, price) {
+    addGuiding(gid, location, startDate, endDate, price,spots) {
         let guides = this.readData(this.guidesFile);
-        guides.push({ id: guides.length + 1, gid, location, startDate, endDate, price });
+        guides.push({ id: uuidv4(), gid, location, startDate, endDate, price ,spots,timestamp: Date.now()});
         this.writeData(this.guidesFile, guides);
         this.checkTrips()
     }
 
-    addPlannedTrip(tid, gid, hid, location, startDate, endDate, price) {
+    addPlannedTrip(tripData,transportData, houseData ,guideData) {
         let trips = this.readData(this.tripsFile);
-        const tripData={ tid, gid, hid, location, startDate, endDate, price }
         const previousBlockHash=trips[0].hash
         const currentBlockData = {
-                index: trips.length + 1,
+                index: uuidv4(),
                 timestamp: Date.now(),
-                transactions: tripData,
+                transactions: {
+                    tripData ,
+                    houseData,
+                    guideData,
+                    transportData
+                },
                 creatorNodeUrl:  this.creatorNodeUrl,
                 previousBlockHash: previousBlockHash,
-                //creatorReputation: isGenesis ? null : creatorReputation 
              }
         const dataAsString =JSON.stringify(currentBlockData);
         const sign = createSign("SHA256");
@@ -105,9 +109,23 @@ class TripPlanner {
                                 trip.location === guidee.location
                             );
                             if (!exists) {
-                                console.log("trip added");
+                                console.log("trip added")
                                 let price = (trans.price + guidee.price + house.price) * (enddate - startdate);
-                                this.addPlannedTrip(trans.id, guidee.id, house.id, guidee.location, startdate, enddate, price);
+                                let spots = this.ending(guidee.spots, trans.spots, house.spots);
+                                let tripData = {
+                                    id : uuidv4(),
+                                    tid :trans.id,
+                                    gid :guidee.id, 
+                                    hid :house.id, 
+                                    location : guidee.location, 
+                                    startdate, 
+                                    enddate, 
+                                    price,
+                                    availableSpots : spots,
+                                    spots,
+                                    participators : []
+                                }
+                                this.addPlannedTrip(tripData,trans ,house,guidee);
                                 this.removeData(this.guidesFile, guides.indexOf(guidee));
                                 this.removeData(this.housesFile, houses.indexOf(house));
                                 this.removeData(this.transportFile, transport.indexOf(trans));
@@ -123,8 +141,32 @@ class TripPlanner {
 
 
 process.env.NODE_OPTIONS = "--openssl-legacy-provider";
-tripPlanner = new TripPlanner(process.argv[8])
-console.log("starting . . ." + process.argv[2])
-if(process.argv[2] == "house")  tripPlanner.addHousing(parseInt(process.argv[3],10),process.argv[4],parseInt(process.argv[5],10),parseInt(process.argv[6],10),parseInt(process.argv[7],10))
-if(process.argv[2] == "guide") tripPlanner.addGuiding(process.argv[3],process.argv[4],process.argv[5],process.argv[6],process.argv[7])
-if(process.argv[2] == "transport") tripPlanner.addTransportation(process.argv[3],process.argv[4],process.argv[5],process.argv[6],process.argv[7])
+tripPlanner = new TripPlanner(process.argv[9])
+if(process.argv[2] == "house") 
+     tripPlanner.addHousing(
+    parseInt(process.argv[3],10),
+    process.argv[4],
+    parseInt(process.argv[5],10),
+    parseInt(process.argv[6],10),
+    parseInt(process.argv[7],10),
+    parseInt(process.argv[8],10)
+)
+
+if(process.argv[2] == "guide")
+     tripPlanner.addGuiding(
+        parseInt(process.argv[3],10),
+        process.argv[4],
+        parseInt(process.argv[5],10),
+        parseInt(process.argv[6],10),
+        parseInt(process.argv[7],10),
+        parseInt(process.argv[8],10)
+    )
+if(process.argv[2] == "transport")
+     tripPlanner.addTransportation(
+        parseInt(process.argv[3],10),
+        process.argv[4],
+        parseInt(process.argv[5],10),
+        parseInt(process.argv[6],10),
+        parseInt(process.argv[7],10),
+        parseInt(process.argv[8],10)
+    )

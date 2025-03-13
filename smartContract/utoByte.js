@@ -24,8 +24,8 @@ function fileToBytes(inputFilePath, outputFilePath) {
 }
 
 // Example usage
-const inputFile = "smartcontract.js";  
-const outputFile = "output.bin"; 
+const inputFile = "smartContract.js";  
+const outputFile = "smartContract.bin"; 
 
 fileToBytes(inputFile, outputFile);
 
