@@ -24,24 +24,24 @@ class TripPlanner {
         fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
     }
 
-    addHousing(hid, location, startDate, endDate, price,spots) {
+    addHousing(hid, location, startDate, endDate, price,spots,bankUrl) {
         let houses = this.readData(this.housesFile);
-        houses.push({ id: uuidv4(), hid, location, startDate, endDate, price ,spots,timestamp: Date.now(),
+        houses.push({ id: uuidv4(), hid, location, startDate, endDate, price ,spots,bankUrl,timestamp: Date.now(),
         });
         this.writeData(this.housesFile, houses);
         this.checkTrips()
     }
 
-    addTransportation(tid, location, startDate, endDate, price,spots) {
+    addTransportation(tid, location, startDate, endDate, price,spots,bankUrl) {
         let transport = this.readData(this.transportFile);
-        transport.push({ id: uuidv4(), tid, location, startDate, endDate, price ,spots,timestamp: Date.now()});
+        transport.push({ id: uuidv4(), tid, location, startDate, endDate, price ,spots,bankUrl,timestamp: Date.now()});
         this.writeData(this.transportFile, transport);
         this.checkTrips()
     }
 
-    addGuiding(gid, location, startDate, endDate, price,spots) {
+    addGuiding(gid, location, startDate, endDate, price,spots,bankUrl) {
         let guides = this.readData(this.guidesFile);
-        guides.push({ id: uuidv4(), gid, location, startDate, endDate, price ,spots,timestamp: Date.now()});
+        guides.push({ id: uuidv4(), gid, location, startDate, endDate, price ,spots,bankUrl,timestamp: Date.now()});
         this.writeData(this.guidesFile, guides);
         this.checkTrips()
     }
@@ -141,7 +141,7 @@ class TripPlanner {
 
 
 process.env.NODE_OPTIONS = "--openssl-legacy-provider";
-tripPlanner = new TripPlanner(process.argv[9])
+tripPlanner = new TripPlanner(process.argv[10])
 if(process.argv[2] == "house") 
      tripPlanner.addHousing(
     parseInt(process.argv[3],10),
@@ -149,7 +149,8 @@ if(process.argv[2] == "house")
     parseInt(process.argv[5],10),
     parseInt(process.argv[6],10),
     parseInt(process.argv[7],10),
-    parseInt(process.argv[8],10)
+    parseInt(process.argv[8],10),
+    process.argv[10]
 )
 
 if(process.argv[2] == "guide")
@@ -159,7 +160,8 @@ if(process.argv[2] == "guide")
         parseInt(process.argv[5],10),
         parseInt(process.argv[6],10),
         parseInt(process.argv[7],10),
-        parseInt(process.argv[8],10)
+        parseInt(process.argv[8],10),
+        process.argv[10]
     )
 if(process.argv[2] == "transport")
      tripPlanner.addTransportation(
@@ -168,5 +170,6 @@ if(process.argv[2] == "transport")
         parseInt(process.argv[5],10),
         parseInt(process.argv[6],10),
         parseInt(process.argv[7],10),
-        parseInt(process.argv[8],10)
+        parseInt(process.argv[8],10),
+        process.argv[10]
     )

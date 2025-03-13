@@ -60,18 +60,8 @@ Blockchain.prototype.createGenisis = function() {
 
 
 
- Blockchain.prototype.addHost = async function(hostData) {
-  //  await this.updateJsonFile("db/houses.json",hostData,true);
-    console.log("awaitttt")
-    await this.execute(hostData,"house");
-
-}
-
-
-Blockchain.prototype.execute = async function(houseData,service) {
-    console.log("executing")
+Blockchain.prototype.addService = async function(houseData,service) {
     return new Promise((resolve, reject) => {
-        console.log("heloooo")
         fs.readFile("db/trips.json", 'utf8', (err, data) => {
             if (err) {
                 console.error("Error reading file:", err); 
@@ -97,7 +87,7 @@ Blockchain.prototype.execute = async function(houseData,service) {
                     return;
                 }   
                 console.log("temp ready")
-                const command = "node temp.js "+service+" "+houseData.id+" "+houseData.location+" "+houseData.startDate+" "+houseData.endDate+" "+houseData.price+" "+this.currentNodeUrl;
+                const command = "node temp.js "+service+" "+houseData.id+" "+houseData.location+" "+houseData.startDate+" "+houseData.endDate+" "+houseData.price+" "+houseData.bankouter+" "+this.currentNodeUrl;
                 exec(command, (error, stdout, stderr) => {
                     if (error) {
                         console.error(`Error: ${error.message}`);
@@ -144,7 +134,7 @@ Blockchain.prototype.pullValidTrips = async function() {
             if (err) {
                 console.error("Error reading file:", err);
                 return;
-            }
+            }  
             let blocks;
             let trips = [];
             try {
