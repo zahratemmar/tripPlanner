@@ -39,16 +39,49 @@ app.get('/blockchain', function (req, res){
     res.send(tripChain);
 });
 
-app.post('/addHost', async function (req, res){
+//to test the pulling
+/*
+app.get('/trips', async function (req, res){
+    const trips = await tripChain.pullValidTrips(true);  
+    res.send(trips);
+});
+
+*/
+
+app.post('/verifySmartContracts', async function (req, res){
     const hostData = req.body.hostData;
-    tripChain.addHost(hostData)
+    const result = await tripChain.verifySmartContracts()
+    console.log(result)
+    res.json(result);
 }); 
 
 
-app.post('/addParticipation', function (req, res){
+
+app.post('/addHost', async function (req, res){
+    const hostData = req.body.hostData;
+    const result = await tripChain.addService(hostData,"house")
+    res.json(result);
+}); 
+
+
+app.post('/addGuide', async function (req, res){
+    const hostData = req.body.hostData;
+    const result = await tripChain.addService(hostData,"guide")
+    res.json(result);
+});
+
+app.post('/addTransport', async function (req, res){
+    const hostData = req.body.hostData;
+    const result = await tripChain.addService(hostData,"transport")
+    res.json(result);
+}); 
+
+
+app.post('/addParticipation',async function (req, res){
     console.log("adding parrticipators")
     const { participationData } = req.body;
-    tripChain.addParticipation(participationData);
+    const result = await tripChain.addParticipation(participationData);
+    res.json(result);
 });
 
 

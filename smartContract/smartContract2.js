@@ -9,18 +9,15 @@ class PayementDist{
     ditributePayments(ditributionData){
         const ditribution = [
             {
-                type: 'transport',
-                id :ditributionData.transport.tid,
+                bankUrl :ditributionData.transport.tid,
                 amount: ditributionData.transport.amount*this.tripLength
             },
             {
-                type: 'house',
-                id :ditributionData.house.hid,
+                bankUrl :ditributionData.house.hid,
                 amount: ditributionData.house.amount*this.tripLength
             },
             {
-                type: 'guide',
-                id :ditributionData.guide.gid,
+                bankUrl :ditributionData.guide.gid,
                 amount: ditributionData.guide.amount*this.tripLength
             }
         ]

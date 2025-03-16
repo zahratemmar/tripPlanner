@@ -49,6 +49,7 @@ class TripPlanner {
     addPlannedTrip(tripData,transportData, houseData ,guideData) {
         let trips = this.readData(this.tripsFile);
         const previousBlockHash=trips[0].hash
+        const tripCounter = trips[0].tripCounter + 1;
         const currentBlockData = {
                 index: uuidv4(),
                 timestamp: Date.now(),
@@ -58,6 +59,8 @@ class TripPlanner {
                     guideData,
                     transportData
                 },
+                payed : false,
+                tripCounter,
                 creatorNodeUrl:  this.creatorNodeUrl,
                 previousBlockHash: previousBlockHash,
              }
@@ -109,8 +112,8 @@ class TripPlanner {
                                 trip.location === guidee.location
                             );
                             if (!exists) {
-                                console.log("trip added")
-                                let price = (trans.price + guidee.price + house.price) * (enddate - startdate);
+                                console.log("trip added")                            
+                                let price = (trans.price + guidee.price + house.price) * (enddate - startdate)/ (1000 * 60 * 60 * 24);
                                 let spots = this.ending(guidee.spots, trans.spots, house.spots);
                                 let tripData = {
                                     id : uuidv4(),
@@ -141,7 +144,7 @@ class TripPlanner {
 
 
 process.env.NODE_OPTIONS = "--openssl-legacy-provider";
-tripPlanner = new TripPlanner(process.argv[10])
+tripPlanner = new TripPlanner(process.argv[12])
 if(process.argv[2] == "house") 
      tripPlanner.addHousing(
     parseInt(process.argv[3],10),
@@ -150,7 +153,8 @@ if(process.argv[2] == "house")
     parseInt(process.argv[6],10),
     parseInt(process.argv[7],10),
     parseInt(process.argv[8],10),
-    process.argv[10]
+    process.argv[9],
+    process.argv[10],
 )
 
 if(process.argv[2] == "guide")
@@ -161,7 +165,8 @@ if(process.argv[2] == "guide")
         parseInt(process.argv[6],10),
         parseInt(process.argv[7],10),
         parseInt(process.argv[8],10),
-        process.argv[10]
+        process.argv[9],
+        process.argv[10],
     )
 if(process.argv[2] == "transport")
      tripPlanner.addTransportation(
@@ -171,5 +176,6 @@ if(process.argv[2] == "transport")
         parseInt(process.argv[6],10),
         parseInt(process.argv[7],10),
         parseInt(process.argv[8],10),
-        process.argv[10]
+        process.argv[9],
+        process.argv[10],
     )
