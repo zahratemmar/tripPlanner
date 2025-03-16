@@ -1,40 +1,40 @@
 const express = require('express');
-const Blockchain = require('./blockchain'); 
+const Blockchain = require('./blockchain/blockchain'); 
 const bodyParser = require('body-parser');
 const { url } = require('inspector');
-const rp = require('request-promise');
+const rp = require('request-promise'); 
 const Reputation = require('./Reputation');
 const consensus = require('./consensus');
 const consensusManager = new consensus();
-
+  
 const reputationManager = new Reputation();
 defaultReputation = 10;
-let vote_first_round = [];
-let leaders = [];
-let first_round_validators = []
-global.finalLeader = null;
-const roles = "nromal";
-const port = process.argv[2]; 
+let vote_first_round = [];  
+let leaders = [];   
+let first_round_validators = [] 
+global.finalLeader = null;  
+const roles = "nromal";  
+const port = process.argv[2];  
 const nodeUrl="http://localhost:"+port
 const tripChain= new Blockchain(nodeUrl);
 global.leader = null ;
-const app = express(); 
-app.use(bodyParser.json());  
-app.use(express.json());
-
-
+const app = express();  
+app.use(bodyParser.json());   
+app.use(express.json());  
+   
+     
 app.listen(port, function(){
     console.log(`Listening on port ${port}...`);
-});
-console.log("hello")
+});  
+console.log("hello")   
 reputationManager.setCurrentNodeUrl(nodeUrl)
 reputationManager.updateNodeReputation(nodeUrl, defaultReputation, roles);
 console.log("reputation : "+reputationManager.currentNodeReput())
 if(process.argv[3]) register(process.argv[3])
 
-
-
-
+ 
+ 
+ 
 app.get('/blockchain', function (req, res){
     res.send(tripChain);
 });
@@ -85,55 +85,72 @@ app.post('/addParticipation',async function (req, res){
 });
 
 
-app.post('/register-and-broadcast', function (req, res) {
-    const newNodeUrl=req.body.newNodeUrl;
-    const  roles  = req.body.roles;
-    const publicKey=req.body.publicKey;
-    const a = tripChain.networkNodes.indexOf(newNodeUrl)==-1;
+app.post('/register-and-broadcast', async function (req, res) {
+    const newNodeUrl = req.body.newNodeUrl;
+    const roles = req.body.roles;
+    const publicKey = req.body.publicKey;
+    const a = tripChain.networkNodes.indexOf(newNodeUrl) === -1;
     const b = newNodeUrl !== nodeUrl;
-    if (a && b )tripChain.networkNodes.push({
-        url :newNodeUrl,
-        roles,
-        publicKey
-    });
+
+    if (a && b) {
+        tripChain.networkNodes.push({
+            url: newNodeUrl,
+            roles,
+            publicKey
+        });
+    }
+
     reputationManager.updateNodeReputation(newNodeUrl, defaultReputation, roles);
 
-
     const regNodesPromises = [];
-    tripChain.networkNodes.forEach(networkNode =>{
-        const requestOptions ={
-             uri : networkNode.url+'/register',
-             method : 'POST',
-             body : {
+    tripChain.networkNodes.forEach(networkNode => {
+        const requestOptions = {
+            uri: networkNode.url + '/register',
+            method: 'POST',
+            body: {
                 newNodeUrl,
                 roles,
                 publicKey
             },
-             json : true
+            json: true
         };
-        regNodesPromises.push(rp(requestOptions)); 
+        regNodesPromises.push(rp(requestOptions));
     });
-    console.log("new node "+ newNodeUrl +"registered through this node")
-    Promise.all(regNodesPromises)
-    .then(data =>{
-        const bulkRegisterOption ={
-            uri : newNodeUrl+'/register-bulk',
-            method : 'POST',
-            body : {allNetworkNodes : [ ... tripChain.networkNodes , {
-                url : nodeUrl,
-                roles,
-                publicKey:tripChain.publicKey
-            }]},
-            json : true
-       };
-       return rp(bulkRegisterOption);
-    })
-    .then(data=>{
-        res.json({
-            note : "node registered successfully"});
-    });
-    console.log("sent all nodes")
+ 
+    console.log("new node " + newNodeUrl + " registered through this node");
 
+    try {
+        await Promise.all(regNodesPromises);
+        //const allServices = await tripChain.getAllServices();
+        const bulkRegisterOption = {
+            uri: newNodeUrl + '/register-bulk',
+            method: 'POST',
+            body: {
+                allNetworkNodes: [
+                    ...tripChain.networkNodes,
+                    {
+                        url: nodeUrl,
+                        roles,
+                        publicKey: tripChain.publicKey
+                    }
+                ],
+                //tripBC: tripChain.getBlockChain(true),
+                //paymentBC: tripChain.getBlockChain(false),
+                //allServices
+            },
+            json: true
+        };
+        await rp(bulkRegisterOption);
+        res.json({
+            note: "node registered successfully"
+        });
+
+        console.log("sent all nodes");
+
+    } catch (error) {
+        console.error("Error during registration:", error);
+        res.status(500).json({ error: "An error occurred while registering the node." });
+    }
 });
 
 

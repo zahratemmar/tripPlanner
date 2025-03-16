@@ -1,1 +1,24 @@
-[]
+[
+  {
+    "index": "6f634a8f-3ced-405b-845c-5172812b6d50",
+    "timestamp": 1742140450216,
+    "transactions": {
+      "id": 0,
+      "data": {}
+    },
+    "hash": "000000000000",
+    "previousBlockHash": "00000000000000",
+    "tripCounter": 0
+  },
+  {
+    "index": "27344fce-00ce-4170-b134-fb7b00e65c13",
+    "timestamp": 1742140472144,
+    "transactions": {
+      "id": 0,
+      "data": {}
+    },
+    "hash": "000000000000",
+    "previousBlockHash": "00000000000000",
+    "tripCounter": 0
+  }
+]
