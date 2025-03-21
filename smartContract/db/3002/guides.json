@@ -1,0 +1,57 @@
+[
+  {
+    "id": "cb6b09f2-cad6-4e13-a0c5-6f04cf06f6c3",
+    "gid": 765,
+    "location": "oran",
+    "startDate": 1742037667000,
+    "endDate": 1742901667000,
+    "price": 4,
+    "spots": 7,
+    "bankUrl": "bankkofhost",
+    "timestamp": 1742415359814
+  },
+  {
+    "id": "762b011a-8cd4-4edf-a99b-d2152c9dd611",
+    "gid": 765,
+    "location": "oran2",
+    "startDate": 1742037667000,
+    "endDate": 1742901667000,
+    "price": 4,
+    "spots": 7,
+    "bankUrl": "bankkofhost",
+    "timestamp": 1742419375281
+  },
+  {
+    "id": "50bd0beb-e496-4d46-b21e-bee96ba6d350",
+    "gid": 765,
+    "location": "oran2",
+    "startDate": 1742037667000,
+    "endDate": 1742901667000,
+    "price": 4,
+    "spots": 7,
+    "bankUrl": "bankkofhost",
+    "timestamp": 1742419396130
+  },
+  {
+    "id": "64a3961e-5e43-4828-98a9-0458c120f8c7",
+    "gid": 765,
+    "location": "oran2",
+    "startDate": 1742037667000,
+    "endDate": 1742901667000,
+    "price": 4,
+    "spots": 7,
+    "bankUrl": "bankkofhost",
+    "timestamp": 1742419406510
+  },
+  {
+    "id": "0fa3083f-a16d-4695-a501-2f3b8616f40b",
+    "gid": 765,
+    "location": "oran2",
+    "startDate": 1742037667000,
+    "endDate": 1742901667000,
+    "price": 4,
+    "spots": 7,
+    "bankUrl": "bankkofhost",
+    "timestamp": 1742562417000
+  }
+]

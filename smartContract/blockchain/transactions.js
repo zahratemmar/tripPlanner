@@ -5,35 +5,33 @@ const { v4: uuidv4 } = require("uuid");
 const { createSign } = require("crypto");
 const { getLastBlock,updateJsonFile ,isValidTrip,prepareTemplate, getPrivateKey} = require("./utils");
 
-async function addService(houseData, service) {
+async function addService(nodeUrl,files, houseData, service) {
     return new Promise(async (resolve, reject) => {
-        console.log("preparing template")
-        await prepareTemplate(true);
-        console.log("running the template")
-        const command = `node tripPlannerTemplate.js ${service} ${houseData.id} ${houseData.location} ${houseData.startDate} ${houseData.endDate} ${houseData.price} ${houseData.spots} ${houseData.bankUrl}`;
+        await prepareTemplate(files,true);
+        console.log("running the smart contract (addService)")
+        const command = `node tripPlannerTemplate.js ${service} ${houseData.id} ${houseData.location} ${houseData.startDate} ${houseData.endDate} ${houseData.price} ${houseData.spots} ${houseData.bankUrl} ${nodeUrl}`;
         exec(command, (error, stdout, stderr) => {
             if (error || stderr) {
                 console.error("Error executing service:", error || stderr);
                 reject({ status: -1, message: "Failed to save service" });
             } else {
-                resolve({ status: 1, message: "Service saved successfully" });
+                console.log(stdout)
+                resolve(
+                    JSON.parse(stdout)
+                );
             }
         });
     });
 }
 
-async function addParticipation(participationData) {
+async function addParticipation(files, participationData,currentNodeUrl) {
     try {
-        console.log("add part")
-        const validTripBlock = await isValidTrip(participationData.tripId);
-        console.log("valid trip", validTripBlock)
+        const validTripBlock = await isValidTrip(files, participationData.tripId);
         if (!validTripBlock) return { status: -1, message: "Trip not valid" };
-        console.log("deploying payment")
-        const paymentId = await deployPayment(validTripBlock.transactions, participationData);
-        console.log("reserving spot")
-        await reserveSpot(validTripBlock.transactions, participationData, paymentId);
+        const payment = await deployPayment(files,validTripBlock.transactions, participationData,currentNodeUrl);
+        const trip = await reserveSpot(files,validTripBlock.transactions, participationData, payment.index,currentNodeUrl);
 
-        return { status: 1, message: "Participation added successfully" };
+        return { payment , trip };
     } catch (err) {
         console.error("Error adding participation:", err
         );
@@ -43,31 +41,32 @@ async function addParticipation(participationData) {
 
 
 
-async function reserveSpot(transactions,participationData,paymentId) {
+async function reserveSpot(files,transactions,participationData,paymentId,currentNodeUrl) {
     console.log("reserving a spot")
     transactions.tripData.availableSpots--;
     transactions.tripData.participators.push({
         participator : participationData.participator,
         paymentId
     })
-    const prevBlock = await getLastBlock(true)
+    const prevBlock = await getLastBlock(files,true)
     BlockData = {
         index: uuidv4(),
         timestamp: Date.now(),
         transactions ,
         payed : false,
         tripCounter : prevBlock.tripCounter,
-        creatorNodeUrl:  this.currentNodeUrl,
+        creatorNodeUrl:  currentNodeUrl,
         previousBlockHash: prevBlock.hash
     }
-    const dataAsString =JSON.stringify(BlockData);
+    const dataAsString =JSON.stringify(BlockData, Object.keys(BlockData).sort());
     const sign = createSign("SHA256");
     sign.update(dataAsString);
     sign.end();
-    privateKey = await getPrivateKey()
+    privateKey = await getPrivateKey(files)
     const hash = sign.sign(privateKey, "hex");
     BlockData["hash"]=hash
-    await updateJsonFile("db/trips.json",BlockData,false)
+    await updateJsonFile(files.trips,BlockData,false)
+    return BlockData
 }
 
 

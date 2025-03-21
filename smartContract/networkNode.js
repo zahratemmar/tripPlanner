@@ -5,24 +5,35 @@ const { url } = require('inspector');
 const rp = require('request-promise'); 
 const Reputation = require('./Reputation');
 const consensus = require('./consensus');
+const { updateJsonFile } = require('./blockchain/utils');
 const consensusManager = new consensus();
-  
+    
 const reputationManager = new Reputation();
-defaultReputation = 10;
-let vote_first_round = [];  
-let leaders = [];   
+defaultReputation = 10;  
+let vote_first_round = [];    
+let leaders = [];     
 let first_round_validators = [] 
-global.finalLeader = null;  
-const roles = "nromal";  
+global.finalLeader = 
+    [
+        "http://localhost:3001",
+        "http://localhost:3001",
+        "http://localhost:3001",
+        "http://localhost:3001",
+        "http://localhost:3001",
+        "http://localhost:3001",
+        "http://localhost:3001",
+        "http://localhost:3001"
+    ];  
+const roles = "nromal";   
 const port = process.argv[2];  
 const nodeUrl="http://localhost:"+port
-const tripChain= new Blockchain(nodeUrl);
-global.leader = null ;
-const app = express();  
+const tripChain= new Blockchain(nodeUrl,port);
+global.leader = null;
+const app = express();   
 app.use(bodyParser.json());   
 app.use(express.json());  
-   
-     
+ 
+ 
 app.listen(port, function(){
     console.log(`Listening on port ${port}...`);
 });  
@@ -40,48 +51,139 @@ app.get('/blockchain', function (req, res){
 });
 
 //to test the pulling
-/*
+/* 
 app.get('/trips', async function (req, res){
     const trips = await tripChain.pullValidTrips(true);  
     res.send(trips);
 });
 
-*/
-
+*/ 
+ 
 app.post('/verifySmartContracts', async function (req, res){
     const hostData = req.body.hostData;
-    const result = await tripChain.verifySmartContracts()
-    console.log(result)
-    res.json(result);
+    const {paymentResults , trips} = await tripChain.verifySmartContracts(tripChain.files,tripChain.currentNodeUrl)
+    console.log(paymentResults) 
+    await broadcastResults({trips})
+    res.json(paymentResults);
 }); 
+  
+      
+app.post('/getMinedBlocks', async function (req, res){
+    console.log("received new blocks")
+    const data = req.body;   
+    let leader =""     
+    if(data.trip ){   
+        leader = await tripChain.verifyleader(global.finalLeader,data.trip)
+        const node = tripChain.networkNodes.find(n => n.url === leader);
+        console.log("node : "+node.url)
+        if (leader && await tripChain.isvalidBlock(tripChain.files,data.trip,node.publicKey,true) ){
+            await tripChain.updateJsonFile(tripChain.files.trips,data.trip,false)
+            if(! data.payment) global.finalLeader.splice(global.finalLeader.indexOf(leader), 1);
+        }  
+    }         
+    if(data.trips){   
+        leader = await tripChain.verifyleader(global.finalLeader,data.trips[0])
+        const node = tripChain.networkNodes.find(n => n.url === leader); 
+ 
+        for (const trip of data.trips) {
+            if (leader && await tripChain.isvalidBlock(tripChain.files, trip,node.publicKey, true)) {
+                await tripChain.updateJsonFile(tripChain.files.trips, trip, false);
+            }  
+        }  
+        global.finalLeader.splice(global.finalLeader.indexOf(leader), 1); 
+    }     
+    if(data.payment){  
+        leader = await tripChain.verifyleader(global.finalLeader,data.payment)
+        const node = tripChain.networkNodes.find(n => n.url === leader);
+        console.log("node : "+node.url)
+        if(leader && await tripChain.isvalidBlock(tripChain.files,data.payment,node.publicKey,false)){
+            await tripChain.updateJsonFile(tripChain.files.payments,data.payment,false)
+        }
+        global.finalLeader.splice(global.finalLeader.indexOf(leader), 1);
+    }   
+    if(data.house){
+        updateJsonFile(tripChain.files.houses,data.house,true)
+        global.finalLeader.splice(global.finalLeader.indexOf(leader), 1);
+    }  
+    if(data.transport){ 
+        updateJsonFile(tripChain.files.transport,data.transport,true)
+        global.finalLeader.splice(global.finalLeader.indexOf(leader), 1);
+    } 
+    if(data.guide){  
+        updateJsonFile(tripChain.files.guides,data.guide,true)
+        global.finalLeader.splice(global.finalLeader.indexOf(leader), 1);
+    }
+ 
+   
+    res.json({note : "received new blocks"});
+ 
+
+}) 
+
+ 
 
 
 
 app.post('/addHost', async function (req, res){
     const hostData = req.body.hostData;
-    const result = await tripChain.addService(hostData,"house")
-    res.json(result);
+    const result = await tripChain.addService(tripChain.currentNodeUrl,tripChain.files,hostData,"house")
+    await broadcastResults(result)
+    res.json(
+        {
+            note: "House added successfully",
+        }
+    );
 }); 
 
-
+  
 app.post('/addGuide', async function (req, res){
     const hostData = req.body.hostData;
-    const result = await tripChain.addService(hostData,"guide")
-    res.json(result);
-});
+    const result = await tripChain.addService(tripChain.currentNodeUrl,tripChain.files,hostData,"guide")
+    await broadcastResults(result)
+    res.json( 
+        {
+            note: "guide added successfully",
+        } 
+    );
+}); 
 
 app.post('/addTransport', async function (req, res){
     const hostData = req.body.hostData;
-    const result = await tripChain.addService(hostData,"transport")
-    res.json(result);
+    const result = await tripChain.addService(tripChain.currentNodeUrl,tripChain.files,hostData,"transport")
+    await broadcastResults(result)
+    res.json(
+        {
+            note: "trnsport added successfully",
+        }
+    );
 }); 
-
+ 
 
 app.post('/addParticipation',async function (req, res){
     console.log("adding parrticipators")
     const { participationData } = req.body;
-    const result = await tripChain.addParticipation(participationData);
-    res.json(result);
+    const result = await tripChain.addParticipation(tripChain.files,participationData,tripChain.currentNodeUrl);
+    const regNodesPromises = [];
+    tripChain.networkNodes.forEach(networkNode => {
+        const requestOptions = {
+            uri: networkNode.url + '/getMinedBlocks',
+            method: 'POST',
+            body: result,
+            json: true 
+        };  
+        regNodesPromises.push(rp(requestOptions));
+    });  
+    
+    try {
+        await Promise.all(regNodesPromises);
+    }
+    catch (error) {
+        console.error("Error during broadcasting new blocks:", error);
+    }
+
+    res.json({
+            note: "Participation added successfully",
+        });
 });
 
 
@@ -544,6 +646,7 @@ app.post('/receive-leader-and-vote-final-leader', function(req, res) {
         return count > max.count ? { url, count } : max;
     }, { url: "", count: 0 });
     global.leader = finalLeader.url;
+    global.finalLeader.push(finalLeader.url)
     if (!leader || leader.reputationScore === -1) {
          const endExecution = performance.now();
          const endCPUUsage = process.cpuUsage(startCPUUsage);
@@ -566,12 +669,27 @@ app.post('/receive-leader-and-vote-final-leader', function(req, res) {
 
 
 
+broadcastResults = async function(results){
+    console.log("broadcasting the results")
+    const regNodesPromises = [];
+    tripChain.networkNodes.forEach(networkNode => {
+        const requestOptions = {
+            uri: networkNode.url + '/getMinedBlocks',
+            method: 'POST',
+            body: results,
+            json: true 
+        };  
+        regNodesPromises.push(rp(requestOptions));
+    });   
+    
+    try {
+        await Promise.all(regNodesPromises);
+    }
+    catch (error) {
+        console.error("Error during broadcasting new blocks:", error);
+    }
+
+}
 
 
-app.post('/executePayments', function (req, res){
-
-   // tripChain.checkSmartContracts();
-
- 
-});
 
