@@ -44,4 +44,32 @@ Reputation.prototype.setCurrentNodeUrl = function(url) {
     this.currentNodeUrl = url;
 };
 
+
+Reputation.prototype.increaseNodeReputation = function(nodeUrl, incrementValue = 1) {
+    const node = this.nodesReputations.find(nodeRep => nodeRep.nodeUrl === nodeUrl);
+
+    if (node) {
+        node.reputationScore += incrementValue; // Increase the reputation
+    } else {
+        // If the node doesn't exist, add it with a default reputation + incrementValue
+        this.nodesReputations.push({
+            nodeUrl: nodeUrl,
+            reputationScore: 10 + incrementValue, // Default reputation (10) + increment
+            role: null // No role assigned initially
+        });
+    }
+
+    return this.nodesReputations;
+};
+
+
+
+
+
+
+
+
+
+
+
 module.exports =Reputation;

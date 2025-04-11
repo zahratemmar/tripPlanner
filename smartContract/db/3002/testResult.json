@@ -1,4 +1,1 @@
-{
-  "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2k7gnBfznz2XJTL0fMoz\nzMnMRgl/nmKOGj4VuXA7gxBVo++eJ5EAVRlgFJVYvRWJ9DkXZQphnd6utrW7ss9Q\nTKUQGb4uxWMbwec6yWnMlDva/7dU9P4Ti9eaSXPMRnfY5LSkpsnnBiYzEUhRFB7W\nyhmwcyOdmV0/LmpPIHbiUEgA5ddMpyDcyfG+E94TQUmOKALNL1jF+Y2qY+aYdtJD\nZ+6i8vnIKHqkU8Xa/OzM+2ltNM29BRH5u26j3mfZ5QzBj16jHnkCP8Ig+bAX3dRs\nF3QUYKAZojj6p/yIKILvkz1X8MrYOgoaz8C38IcTsj4IaFXkAoDk5CnM7VfbH9y9\n1QIDAQAB\n-----END PUBLIC KEY-----\n",
-  "data": "{\"creatorNodeUrl\":\"http://localhost:3001\",\"index\":\"cb9637ad-9da2-4bd6-b549-54b92ce651f3\",\"payed\":false,\"previousBlockHash\":\"000000000000\",\"timestamp\":1742414831436,\"transactions\":{},\"tripCounter\":1}"
-}
+[]

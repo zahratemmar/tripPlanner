@@ -1,5 +1,5 @@
 const { createGenesisBlocks } = require("./genesis");
-const { addService, addParticipation } = require("./transactions");
+const { addService, addParticipation , getService } = require("./transactions");
 const { verifySmartContracts, executePayment } = require("./payments");
 const { 
     getLastBlock, 
@@ -8,11 +8,14 @@ const {
     getAllServices ,
     updateJsonFile,
     isvalidBlock,
-    verifyleader
+    verifyleader,
+    deleteUsedServices,
+    verifyChains
 } = require("./utils");
 
 function Blockchain(nodeUrl,port) {
     this.tripCounter = 0;
+    this.port=port
     this.currentNodeUrl = nodeUrl;
     this.currentNodeReputation = 0;
     this.currentNodeRoles = null;
@@ -27,13 +30,6 @@ function Blockchain(nodeUrl,port) {
         test :  "db/"+port+"/testResult.json"
     }
     this.publicKey = null;
-    createGenesisBlocks(this.files)
-    .then(publicKey => {
-        this.publicKey = publicKey;
-    })
-    .catch(error => console.error("Failed to create genesis blocks:", error));
-
-
 }
 
 Blockchain.prototype.addService = addService;
@@ -46,10 +42,10 @@ Blockchain.prototype.isValidTrip = isValidTrip;
 Blockchain.prototype.getAllServices = getAllServices;
 Blockchain.prototype.updateJsonFile = updateJsonFile;
 Blockchain.prototype.isvalidBlock = isvalidBlock;
-
-
+Blockchain.prototype.deleteUsedServices = deleteUsedServices;
+Blockchain.prototype.verifyChains=verifyChains
 Blockchain.prototype.verifyleader= verifyleader 
-
+Blockchain.prototype.getService=getService
 
 
 module.exports = Blockchain;

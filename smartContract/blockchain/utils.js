@@ -12,6 +12,7 @@ async function getLastBlock(files,flag) {
 }
 
 async function getBlockChain(files,flag) {
+    console.log("file : "+files.trips)
     const file = flag ? files.trips : files.payments;
     const data = await fs.readFile(file, "utf8");
     return JSON.parse(data);
@@ -193,7 +194,93 @@ async function verifyleader(finalLeader,block){
 }
 
 
+
+async function deleteUsedServices(services){
+    console.log("hello")
+    console.log(services)
+    const deletePromises = services.map(({ file, id }) => {
+        return new Promise(async(resolve, reject) => {
+            console.log("file "+ file)
+            console.log("id : "+ id)
+            const data = await fs.readFile(file, 'utf8');
+            jsonData = JSON.parse(data);
+            const updatedData = jsonData.filter(item => item.id !== id);
+            if (jsonData.length === updatedData.length) {
+                return resolve(`No entry with ID ${id} found in ${file}`);
+            }
+            await fs.writeFile(file, JSON.stringify(updatedData, null, 2));
+            resolve("service deleted");
+                });
+            })
+        return Promise.all(deletePromises)
+        .then(results => {
+            console.log("All deletions successful:", results);
+            return true
+        })
+        .catch(error => {
+            console.error("Error during deletion:", error);
+            return false
+        });
+}
+
+
+async function verifyChains(files,networkNodes){
+    return new Promise(async (resolve, reject) => {
+        let chains = []
+        chains[0] = await getBlockChain(files,true)
+        chains[1] = await getBlockChain(files,false)
+        if(chains[0].length === 0 || chains[1].length === 0){
+            resolve(false)
+        }else{
+            const valid = chains.map((chain) => {
+                return new Promise(async (resolve, reject) => {
+                    console.log("verifying chain")
+                    console.log("chain length  :  " + chain.length)
+                    let isValid = true;
+                    let prevHash= chain[chain.length-1].hash
+                    for (i = chain.length-2 ; i>=0 ; i--){
+                        let block = chain[i]
+                        const blockHash=block.hash
+                        delete block.hash     
+                        let dataAsString=JSON.stringify(block, Object.keys(block).sort())
+                        const verify = createVerify("SHA256");
+                        verify.update(dataAsString);
+                        verify.end();
+                        const creator = networkNodes.find(node => node.url === block.creatorNodeUrl);
+                        if(!creator) {
+                            reject("no creator")
+                        }
+                        let publicKey= creator.publicKey
+                        let hashVer = verify.verify(publicKey, blockHash, "hex")
+                        console.log("hash ver = " +hashVer )
+                        if(block.previousBlockHash !== prevHash || !hashVer){
+                            isValid = false
+                            break;
+                        }
+                        prevHash = blockHash
+                    }
+                    resolve(isValid)
+                });
+            })
+        return Promise.all(valid)
+            .then(results => {
+            console.log("is trip valid :", results);
+        })
+        .catch(error => {
+            console.error("Error during verifying:", error);
+            reject()
+         });
+        }
+    })
+    
+}
+
+
+
+
+
 module.exports = { 
+    verifyChains,
     getLastBlock, 
     getBlockChain,
     isValidTrip, 
@@ -203,5 +290,6 @@ module.exports = {
     getPrivateKey,
     getAllServices,
     isvalidBlock,
-    verifyleader
+    verifyleader,
+    deleteUsedServices
 };

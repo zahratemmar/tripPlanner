@@ -1,4 +1,7 @@
 const express = require('express');
+const { createGenesisBlocks } = require("./blockchain/genesis");
+const http = require('http');
+const fs = require('fs');
 const Blockchain = require('./blockchain/blockchain'); 
 const bodyParser = require('body-parser');
 const { url } = require('inspector');
@@ -7,9 +10,9 @@ const Reputation = require('./Reputation');
 const consensus = require('./consensus');
 const { updateJsonFile } = require('./blockchain/utils');
 const consensusManager = new consensus();
-    
+global.registrationNode = null
 const reputationManager = new Reputation();
-defaultReputation = 10;  
+defaultReputation = 10 ;   
 let vote_first_round = [];    
 let leaders = [];     
 let first_round_validators = [] 
@@ -27,42 +30,64 @@ global.finalLeader =
 const roles = "nromal";   
 const port = process.argv[2];  
 const nodeUrl="http://localhost:"+port
-const tripChain= new Blockchain(nodeUrl,port);
 global.leader = null;
 const app = express();   
 app.use(bodyParser.json());   
 app.use(express.json());  
- 
- 
 app.listen(port, function(){
     console.log(`Listening on port ${port}...`);
-});  
-console.log("hello")   
-reputationManager.setCurrentNodeUrl(nodeUrl)
-reputationManager.updateNodeReputation(nodeUrl, defaultReputation, roles);
-console.log("reputation : "+reputationManager.currentNodeReput())
-if(process.argv[3]) register(process.argv[3])
+});
+let tripChain
+
+createBlockchain(nodeUrl, port)
+    .then(tc => {
+        tripChain=tc
+        console.log("hello")   
+        reputationManager.setCurrentNodeUrl(nodeUrl)
+        reputationManager.updateNodeReputation(nodeUrl, defaultReputation, roles);
+        console.log("reputation : "+reputationManager.currentNodeReput())
+        console.log("right after")
+        console.log("keyyy  : ")
+        console.log(tripChain.publicKey)    
+
+        if(process.argv[3]) 
+        {
+            global.registrationNode = process.argv[3]
+            register(global.registrationNode)
+        }
+ 
+
+    })
+    .catch(err => {
+        console.error("Error initializing tripChain:", err);
+    });
+
+
+
 
  
+
+app.get('/reputation',function(req,res){
+    res.json(reputationManager.getNodeReputations())
+})
  
  
 app.get('/blockchain', function (req, res){
     res.send(tripChain);
 });
 
-//to test the pulling
-/* 
+
 app.get('/trips', async function (req, res){
     const trips = await tripChain.pullValidTrips(true);  
     res.send(trips);
 });
-
-*/ 
+ 
  
 app.post('/verifySmartContracts', async function (req, res){
     const hostData = req.body.hostData;
     const {paymentResults , trips} = await tripChain.verifySmartContracts(tripChain.files,tripChain.currentNodeUrl)
     console.log(paymentResults) 
+    reputationManager.increaseNodeReputation(nodeUrl);
     await broadcastResults({trips})
     res.json(paymentResults);
 }); 
@@ -78,6 +103,19 @@ app.post('/getMinedBlocks', async function (req, res){
         console.log("node : "+node.url)
         if (leader && await tripChain.isvalidBlock(tripChain.files,data.trip,node.publicKey,true) ){
             await tripChain.updateJsonFile(tripChain.files.trips,data.trip,false)
+            console.log("length = "+ data.trip.transactions.tripData.participators.length)
+            if(data.trip.transactions.tripData.participators.length==0){
+                console.log("deletion started")
+                const tripdata = data.trip.transactions
+                await tripChain.deleteUsedServices(
+                [
+                    {file : tripChain.files.guides ,id : tripdata.guideData.id },
+                    {file : tripChain.files.houses ,id :tripdata.houseData.id },
+                    {file : tripChain.files.transport ,id : tripdata.transportData.id }
+                ]                
+                )
+            }
+            reputationManager.increaseNodeReputation(leader);
             if(! data.payment) global.finalLeader.splice(global.finalLeader.indexOf(leader), 1);
         }  
     }         
@@ -90,6 +128,8 @@ app.post('/getMinedBlocks', async function (req, res){
                 await tripChain.updateJsonFile(tripChain.files.trips, trip, false);
             }  
         }  
+        
+        reputationManager.increaseNodeReputation(leader);
         global.finalLeader.splice(global.finalLeader.indexOf(leader), 1); 
     }     
     if(data.payment){  
@@ -99,6 +139,7 @@ app.post('/getMinedBlocks', async function (req, res){
         if(leader && await tripChain.isvalidBlock(tripChain.files,data.payment,node.publicKey,false)){
             await tripChain.updateJsonFile(tripChain.files.payments,data.payment,false)
         }
+        reputationManager.increaseNodeReputation(leader);
         global.finalLeader.splice(global.finalLeader.indexOf(leader), 1);
     }   
     if(data.house){
@@ -117,16 +158,18 @@ app.post('/getMinedBlocks', async function (req, res){
    
     res.json({note : "received new blocks"});
  
-
-}) 
-
+ 
+})   
+ 
  
 
-
+ 
 
 app.post('/addHost', async function (req, res){
     const hostData = req.body.hostData;
     const result = await tripChain.addService(tripChain.currentNodeUrl,tripChain.files,hostData,"house")
+    if (result.trip) reputationManager.increaseNodeReputation(nodeUrl);
+
     await broadcastResults(result)
     res.json(
         {
@@ -139,6 +182,7 @@ app.post('/addHost', async function (req, res){
 app.post('/addGuide', async function (req, res){
     const hostData = req.body.hostData;
     const result = await tripChain.addService(tripChain.currentNodeUrl,tripChain.files,hostData,"guide")
+    if (result.trip) reputationManager.increaseNodeReputation(nodeUrl);
     await broadcastResults(result)
     res.json( 
         {
@@ -150,6 +194,7 @@ app.post('/addGuide', async function (req, res){
 app.post('/addTransport', async function (req, res){
     const hostData = req.body.hostData;
     const result = await tripChain.addService(tripChain.currentNodeUrl,tripChain.files,hostData,"transport")
+    if (result.trip) reputationManager.increaseNodeReputation(nodeUrl);
     await broadcastResults(result)
     res.json(
         {
@@ -163,24 +208,8 @@ app.post('/addParticipation',async function (req, res){
     console.log("adding parrticipators")
     const { participationData } = req.body;
     const result = await tripChain.addParticipation(tripChain.files,participationData,tripChain.currentNodeUrl);
-    const regNodesPromises = [];
-    tripChain.networkNodes.forEach(networkNode => {
-        const requestOptions = {
-            uri: networkNode.url + '/getMinedBlocks',
-            method: 'POST',
-            body: result,
-            json: true 
-        };  
-        regNodesPromises.push(rp(requestOptions));
-    });  
-    
-    try {
-        await Promise.all(regNodesPromises);
-    }
-    catch (error) {
-        console.error("Error during broadcasting new blocks:", error);
-    }
-
+    reputationManager.increaseNodeReputation(nodeUrl);
+    await broadcastResults(result)
     res.json({
             note: "Participation added successfully",
         });
@@ -191,6 +220,8 @@ app.post('/register-and-broadcast', async function (req, res) {
     const newNodeUrl = req.body.newNodeUrl;
     const roles = req.body.roles;
     const publicKey = req.body.publicKey;
+    console.log("keyyy  : ")
+    console.log(publicKey)
     const a = tripChain.networkNodes.indexOf(newNodeUrl) === -1;
     const b = newNodeUrl !== nodeUrl;
 
@@ -236,13 +267,19 @@ app.post('/register-and-broadcast', async function (req, res) {
                         publicKey: tripChain.publicKey
                     }
                 ],
-                //tripBC: tripChain.getBlockChain(true),
-                //paymentBC: tripChain.getBlockChain(false),
-                //allServices
             },
             json: true
         };
         await rp(bulkRegisterOption);
+
+
+
+
+
+
+
+
+
         res.json({
             note: "node registered successfully"
         });
@@ -283,45 +320,45 @@ app.post('/register', function (req, res) {
         console.log(networkNodeUrl);
         const a = tripChain.networkNodes.indexOf(networkNodeUrl.url)==-1;
         const b = networkNodeUrl.url !== nodeUrl;  
-        console.log(b);  
         if(a && b) tripChain.networkNodes.push(networkNodeUrl);
         reputationManager.updateNodeReputation(networkNodeUrl.url, defaultReputation, roles);
+    }); 
+ 
+    streamAndSaveFiles(
+        global.registrationNode,
+        [ 
+            { path: '/streamTrips', filePath: tripChain.files.trips },
+            { path: '/streamGuides', filePath: tripChain.files.guides },
+            { path: '/streamTransports', filePath: tripChain.files.transport }, 
+            { path: '/streamHosts', filePath: tripChain.files.houses },
+            { path: '/streamPayments', filePath: tripChain.files.payments }
+        ]  
+    ).then(results => {  
+        tripChain.verifyChains(tripChain.files,tripChain.networkNodes)
+        res.json({  
+            note : "bulk registeration successful"
+        }); 
+    }) 
+    .catch(error => {
+        console.error("Error saving files:", error);
     });
 
-    res.json({
-        note : "bulk registeration successful"
-    });
-   
+
+
+
+
+
+
+
     
-
-
-    //to test the consensus
-/*    if(allNetworkNodes.length>2){
-        console.log("consensus starts")
-        for(let i = 0; i < 10; i++) {          
-            for(let j = 0; j < 10000000; j++) {
-                  j=j+1
-                  }
-            console.log("waiting");
-    }
-
-    const consensus ={
-        uri : nodeUrl+'/reset-consensus',
-        method : 'POST',
-        body : {
-        },
-        json : true
-   };
-   return rp(consensus)
-   .then(data=>{
-    console.log(data)
- });}*/
 });
-
+ 
 
 
 
 function register(address){
+    console.log("key to register ")
+    console.log(tripChain.publicKey)
     const url = 'http://localhost:'+address+'/register-and-broadcast'
     const registerOption ={
         uri : url,
@@ -406,7 +443,7 @@ app.post('/reset-consensus', function(req, res) {
             });
         })
         .catch(error => {
-            console.error("Error in process:", error);
+            console.error("Error in process:",error); 
             res.status(500).json({ message: "Error in resetting consensus, selecting top validators, choosing potential leader, and announcing final leader." });
         });
 });
@@ -669,6 +706,146 @@ app.post('/receive-leader-and-vote-final-leader', function(req, res) {
 
 
 
+
+
+
+
+
+app.get('/streamTrips', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Transfer-Encoding', 'chunked'); 
+
+    const readStream = fs.createReadStream(tripChain.files.trips, { encoding: 'utf8' });
+
+    readStream.on('data', (chunk) => {
+        res.write(chunk); // Send JSON chunk
+    });
+
+    readStream.on('end', () => {
+        res.end(); // End the response when the file is fully sent
+    });
+
+    readStream.on('error', (err) => {
+        console.error('Error reading file:', err);
+        res.status(500).end(JSON.stringify({ error: 'File read error' }));
+    });
+});
+
+
+app.get('/streamGuides', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Transfer-Encoding', 'chunked'); 
+
+    const readStream = fs.createReadStream(tripChain.files.guides, { encoding: 'utf8' });
+
+    readStream.on('data', (chunk) => {
+        res.write(chunk); // Send JSON chunk
+    });
+
+    readStream.on('end', () => {
+        res.end(); // End the response when the file is fully sent
+    });
+
+    readStream.on('error', (err) => {
+        console.error('Error reading file:', err);
+        res.status(500).end(JSON.stringify({ error: 'File read error' }));
+    });
+});
+
+
+app.get('/streamTransports', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Transfer-Encoding', 'chunked'); 
+
+    const readStream = fs.createReadStream(tripChain.files.transport, { encoding: 'utf8' });
+
+    readStream.on('data', (chunk) => {
+        res.write(chunk); // Send JSON chunk
+    });
+
+    readStream.on('end', () => {
+        res.end(); // End the response when the file is fully sent
+    });
+
+    readStream.on('error', (err) => {
+        console.error('Error reading file:', err);
+        res.status(500).end(JSON.stringify({ error: 'File read error' }));
+    });
+});
+
+
+app.get('/streamHosts', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Transfer-Encoding', 'chunked'); 
+
+    const readStream = fs.createReadStream(tripChain.files.houses, { encoding: 'utf8' });
+
+    readStream.on('data', (chunk) => {
+        res.write(chunk); // Send JSON chunk
+    });
+
+    readStream.on('end', () => {
+        res.end(); // End the response when the file is fully sent
+    });
+
+    readStream.on('error', (err) => {
+        console.error('Error reading file:', err);
+        res.status(500).end(JSON.stringify({ error: 'File read error' }));
+    });
+});
+
+
+app.get('/streamPayments', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Transfer-Encoding', 'chunked'); 
+
+    const readStream = fs.createReadStream(tripChain.files.payments, { encoding: 'utf8' });
+
+    readStream.on('data', (chunk) => {
+        res.write(chunk); // Send JSON chunk
+    });
+
+    readStream.on('end', () => {
+        res.end(); // End the response when the file is fully sent
+    });
+
+    readStream.on('error', (err) => {
+        console.error('Error reading file:', err);
+        res.status(500).end(JSON.stringify({ error: 'File read error' }));
+    });
+});
+
+
+
+
+
+
+
+
+
+app.get('/getService', (req, res) => {
+
+    const settings = req.body;
+    const result = tripChain.getService(settings)
+    res.json(result)
+
+
+})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 broadcastResults = async function(results){
     console.log("broadcasting the results")
     const regNodesPromises = [];
@@ -692,4 +869,68 @@ broadcastResults = async function(results){
 }
 
 
+
+
+
+
+
+
+
+function streamAndSaveFiles(port,files) {
+    const requests = files.map(({ path, filePath }) => {
+        return new Promise((resolve, reject) => {
+            const options = {
+                hostname: 'localhost',
+                port: port,
+                path: path,
+                method: 'GET',
+            };
+
+            let data = "";
+            const req = http.request(options, (res) => {
+                res.setEncoding('utf8');
+
+                res.on('data', (chunk) => {
+                    data += chunk;
+                });
+
+                res.on('end', () => {
+                    console.log(`Streaming complete of ${path}`);
+                    fs.writeFile(filePath, data, (err) => {
+                        if (err) {
+                            console.error(`Error writing file:`, err);
+                            return reject(`Failed to writefile`);
+                        }
+                        console.log(`JSON file saved.`);
+                        resolve({ message: ` file written successfully` });
+                    });
+                });
+            });
+
+            req.on('error', (err) => {
+                console.error(` Error receiving stream:`, err);
+                reject(`Failed to receive stream`);
+            });
+
+            req.end();
+        });
+    });
+
+    return Promise.all(requests);
+}
+
+
+
+
+ async function createBlockchain(nodeUrl, port) {
+    const instance = new Blockchain(nodeUrl, port);
+    try {
+        instance.publicKey = await createGenesisBlocks(instance.files);
+        console.log("created key");
+        return instance;
+    } catch (err) {
+        console.error("Failed to create genesis blocks:", err);
+        throw err;
+    }
+};
 

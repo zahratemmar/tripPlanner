@@ -16,6 +16,14 @@ async function addService(nodeUrl,files, houseData, service) {
                 reject({ status: -1, message: "Failed to save service" });
             } else {
                 console.log(stdout)
+                fs.unlink('tripPlannerTemplate.js', (err) => {
+                    if (err) {
+                        console.error('Error deleting file:', err);
+                    } else {
+                        console.log('File deleted successfully');
+                        
+                    }
+                });
                 resolve(
                     JSON.parse(stdout)
                 );
@@ -70,7 +78,14 @@ async function reserveSpot(files,transactions,participationData,paymentId,curren
 }
 
 
+async function getService(settings){
+    const data = await fs.readFile(fsettings.ile, 'utf8');
+    let service = JSON.parse(data);
+    if(settings.location){
+        service = service.filter((service) => service.location === settings.location);
+    }
+    return service;
+}
 
 
-
-module.exports = { addService, addParticipation };
+module.exports = { addService, addParticipation ,getService};

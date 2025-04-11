@@ -72,7 +72,7 @@ async function verifySmartContracts (files,currentNodeUrl) {
         trip["hash"] = previousBlockHash;
         await updateJsonFile(files.trips, trip, false);
     }
-    await fs.unlink('paymentTemplate.js', (err) => {
+    fs.unlink('paymentTemplate.js', (err) => {
         if (err) {
             console.error('Error deleting file:', err);
             return({ 
@@ -81,10 +81,10 @@ async function verifySmartContracts (files,currentNodeUrl) {
             })
         } else { 
             console.log('File deleted successfully');
+            console.log("after treatement blocks r "+ trips.length)
         }
     });
-    console.log("after treatement blocks r "+ trips.length)
-    return {paymentResults, trips};
+            return {paymentResults, trips};
    
 }
 
