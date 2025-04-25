@@ -1,0 +1,9 @@
+
+export async function tripCancelled(trip){
+
+    return {
+        subject : " your trip has been cancelled ! ",
+        text: "we are sorry to tell you that your vacation might have to wait , the trip you reserved going to "+trip.location+" that was supposed to start on"+new Date(trip.startDate)+" and end on "+new Date(trip.endDate)+"has been cancelled \nplease check your account for more details and make sure to check the still available trips . we are sure some will catch your attention !",
+        bold : "we are so sorry ! , the trip you reserved has been cancelled ! "
+    }
+}

@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:15
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: triply
+    networks:
+      - triply
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+networks:
+  triply:
+
+volumes:
+  pgdata:
