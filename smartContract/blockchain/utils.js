@@ -32,7 +32,6 @@ async function getBlockChain(files,flag) {
 }*/
 
 async function updateJsonFile(filePath, newData, flag) {
-    console.log("pushing new data ")
     let data = [];
         try {
             const existingData = await fs.readFile(filePath, "utf8");
@@ -82,21 +81,24 @@ async function isValidTrip(files, tripId){
     console.log("validating the tripis = " + tripId)
     const data =await fs.readFile(files.trips, 'utf8')
     let blocks;
-    let trips = [];
     try { 
         blocks = JSON.parse(data).slice(0, -1);
-        for (const block of blocks) { 
-            if(block.transactions.tripData.id == tripId){
+        for (let i = 0; i < blocks.length;i++) { 
+            if(blocks[i].transactions.tripData.id == tripId){
                 console.log("verifiying date and availability")
-                console.log("date now :"+ Date.now() + " startdate : "+block.transactions.tripData.startdate)
-                console.log("availale spots : "+block.transactions.tripData.availableSpots)
-                if(block.transactions.tripData.availableSpots > 0 /*&& block.transactions.tripData.startdate > Date.now()*/){
-                    console.log("returning block")
-                    resolve (block);
+                console.log("date now :"+ Date.now() + " startdate : "+blocks[i].transactions.tripData.startdate)
+                console.log("availale spots : "+blocks[i].transactions.tripData.availableSpots)
+                if(
+                    blocks[i].transactions.tripData.availableSpots > 0 
+                    /*&& block.transactions.tripData.startdate > Date.now()*/
+                    && blocks[i].payed == false
+                ){
+                    console.log("returning block index = "+blocks[i].index)
+                    resolve (blocks[i]);
                 }
             }
         }
-        console.log("trip not valid")
+        console.log(".............................trip not valid")
         resolve (null);
         
     } catch (parseErr) {
@@ -117,26 +119,35 @@ async function pullValidTrips(files,flag) {
             let payedTripsId = []
             try { 
                 blocks = JSON.parse(data).slice(0, -1);
-                blocks.some((block) => {
-                    let id=block.transactions.tripData.id
-                    console.log("id = "+id)
-                    if (block.payed && !payedTripsId.includes(id)){
-                        console.log("payed")
-                        payedTripsId.push(id)
+                for (const block of blocks) {
+                    let id = block.transactions.tripData.id;
+                    console.log("id = " + id);
+                
+                    if (block.payed && !payedTripsId.includes(id)) {
+                        console.log("payed");
+                        payedTripsId.push(id);
                     } 
-                    else if(!validTripsIds.includes(id) && !payedTripsId.includes(id)){
-                        console.log("new")
-                        if(flag && block.transactions.tripData.startdate > Date.now()){
-                            console.log("flag1")
+                    else if (!validTripsIds.includes(id) && !payedTripsId.includes(id)) {
+                        console.log("new");
+                
+                        if (
+                            flag &&
+                            block.transactions.tripData.startdate > Date.now() &&
+                            block.transactions.tripData.availableSpots > 0
+                        ) {
+                            console.log("flag1");
                             validTrips.push(block);
                             validTripsIds.push(id);
-                        }else if(!flag /*&& block.transactions.tripData.enddate < Date.now()*/){
-                            console.log("flag2")
+                        } else if (!flag /*&& block.transactions.tripData.enddate < Date.now()*/) {
+                            console.log("flag2");
                             validTrips.push(block);
                             validTripsIds.push(id);
                         }
-                    } 
-                })
+                    }
+                
+                    if (block.transactions.tripCounter == 0) break;
+                }
+                console.log("valid trips : " + validTrips.length);
                 resolve(validTrips);
             } catch (parseErr) {
                 console.error("Error :", parseErr);
@@ -224,56 +235,71 @@ async function deleteUsedServices(services){
 }
 
 
-async function verifyChains(files,networkNodes){
-    return new Promise(async (resolve, reject) => {
-        let chains = []
-        chains[0] = await getBlockChain(files,true)
-        chains[1] = await getBlockChain(files,false)
-        if(chains[0].length === 0 || chains[1].length === 0){
-            resolve(false)
-        }else{
-            const valid = chains.map((chain) => {
-                return new Promise(async (resolve, reject) => {
-                    console.log("verifying chain")
-                    console.log("chain length  :  " + chain.length)
-                    let isValid = true;
-                    let prevHash= chain[chain.length-1].hash
-                    for (i = chain.length-2 ; i>=0 ; i--){
-                        let block = chain[i]
-                        const blockHash=block.hash
-                        delete block.hash     
-                        let dataAsString=JSON.stringify(block, Object.keys(block).sort())
-                        const verify = createVerify("SHA256");
-                        verify.update(dataAsString);
-                        verify.end();
-                        const creator = networkNodes.find(node => node.url === block.creatorNodeUrl);
-                        if(!creator) {
-                            reject("no creator")
-                        }
-                        let publicKey= creator.publicKey
-                        let hashVer = verify.verify(publicKey, blockHash, "hex")
-                        console.log("hash ver = " +hashVer )
-                        if(block.previousBlockHash !== prevHash || !hashVer){
-                            isValid = false
-                            break;
-                        }
-                        prevHash = blockHash
-                    }
-                    resolve(isValid)
-                });
-            })
-        return Promise.all(valid)
-            .then(results => {
-            console.log("is trip valid :", results);
-        })
-        .catch(error => {
-            console.error("Error during verifying:", error);
-            reject()
-         });
+async function verifyChains(files, networkNodes) {
+    try {
+        const chains = [];
+        chains[0] = await getBlockChain(files, true);
+        chains[1] = await getBlockChain(files, false);
+
+        if (chains[0].length === 0 || chains[1].length === 0) {
+            return false;
         }
-    })
-    
+
+        const results = await Promise.all(chains.map(async (chain) => {
+            console.log("verifying chain");
+            console.log("chain length  :  " + chain.length);
+
+            let isValid = true;
+            let prevHash = chain[chain.length - 1].hash;
+
+            for (let i = chain.length - 2; i >= 0; i--) {
+                const block = { ...chain[i] }; // Copy to avoid deleting from original
+                const blockHash = block.hash;
+                delete block.hash;
+
+                const dataAsString = JSON.stringify(block, Object.keys(block).sort());
+                const verify = createVerify("SHA256");
+                verify.update(dataAsString);
+                verify.end();
+
+                const creator = networkNodes.find(node => node.url === block.creatorNodeUrl);
+                if (!creator) {
+                    throw new Error("Creator not found for block.");
+                }
+
+                const publicKey = creator.publicKey;
+                const hashVer = verify.verify(publicKey, blockHash, "hex");
+
+                console.log("hash ver = " + hashVer);
+
+                if (block.previousBlockHash !== prevHash || !hashVer) {
+                    isValid = false;
+                    break;
+                }
+
+                prevHash = blockHash;
+            }
+
+            return isValid;
+        }));
+
+        console.log("is trip valid :", results);
+        return results.every(Boolean); 
+    } catch (error) {
+        console.error("Error during verifying:", error);
+        return false;
+    }
 }
+
+
+async function storeDiscription(files,id,description){
+    const data =await fs.readFile(files.description, 'utf8')
+    const discs = JSON.parse(data)
+    discs.push({id,description})
+    await fs.writeFile(files.description, JSON.stringify(discs, null, 2));
+}
+
+
 
 
 
@@ -291,5 +317,6 @@ module.exports = {
     getAllServices,
     isvalidBlock,
     verifyleader,
-    deleteUsedServices
+    deleteUsedServices,
+    storeDiscription
 };

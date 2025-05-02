@@ -2,8 +2,7 @@ import { relations } from "drizzle-orm";
 import { pgTable, uuid, varchar ,timestamp,pgEnum,text,integer} from "drizzle-orm/pg-core"
 
 export const userTypeEnum = pgEnum("user_type", ["user", "guide", "transporter","host"]); 
-
-  export const users = pgTable('users', {
+  export const users = pgTable('users', {//user entity
     id: uuid("id").defaultRandom().primaryKey(),
     email:varchar('email').unique().notNull(),
     hashedpwd:varchar('hashedpwd').notNull(),
@@ -15,12 +14,9 @@ export const userTypeEnum = pgEnum("user_type", ["user", "guide", "transporter",
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().notNull(),
     totalTrips : integer("totalTrips").default(0).notNull(),
-    totalFails : integer("totalFails").default(0).notNull(),
+    totalFails : integer("totalFails").default(0).notNull(),//trips cancelled
   });
-
-
-
-  export const messages = pgTable('messages', {
+  export const messages = pgTable('messages', {//enquiries entity
     id: uuid("id").defaultRandom().primaryKey(),
     message: text("message").notNull(),
     userId: uuid("userId").references(() => users.id),

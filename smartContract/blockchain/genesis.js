@@ -11,14 +11,26 @@ function createGenesisBlocks(files) {
                 fs.readFile("smartContract.bin", "utf8"),
                 fs.readFile("smartContract2.bin", "utf8"),
             ]);
+            let key;
             const tripGenisis = { id: 0, data: tripData };
             const paymentGenisis = { id: 0, data: paymentData };
-            const { privateKey, publicKey } = generateKeyPairSync("rsa", {
+            let keys = await fs.readFile(files.keys, 'utf-8');
+            keys=keys.trim()
+            if (!keys || keys === '{}' || keys === '[]'){
+                console.log("No keys found, generating new keys...");
+                 const{ privateKey, publicKey } = generateKeyPairSync("rsa", {
                 modulusLength: 2048, 
                 publicKeyEncoding: { type: "spki", format: "pem" },
-                privateKeyEncoding: { type: "pkcs8", format: "pem" }
-            });
-            await fs.writeFile(files.keys, JSON.stringify({ publicKey, privateKey }));
+                privateKeyEncoding: { type: "pkcs8", format: "pem" }})
+                await fs.writeFile(files.keys, JSON.stringify({ publicKey, privateKey }));
+                key=publicKey
+              
+            }else{ 
+                const keys = await fs.readFile(files.keys, 'utf-8');
+                const { publicKey, privateKey } = JSON.parse(keys); 
+                console.log("Keys found, using existing keys...");
+                key=publicKey
+            }
             const newBlock = {
                 index: uuidv4(),
                 timestamp: Date.now(),
@@ -31,8 +43,7 @@ function createGenesisBlocks(files) {
             newBlock.transactions = tripGenisis;
             newBlock.tripCounter = 0;
             await updateJsonFile(files.trips, newBlock, true);
-            console.log("Public Key:", publicKey);
-            resolve(publicKey); 
+            resolve(key); 
         } catch (error) {
             console.error("Error creating genesis blocks:", error);
             reject(error); 

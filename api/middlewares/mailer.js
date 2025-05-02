@@ -15,7 +15,7 @@ const transporter = nodemailer.createTransport({
   
 export async function sendMail({ to, subject,bold, text }) {
     console.log("sending mail to",to)
-    const html = `<p><strong>${bold}</strong></p><p>${text}</p>`;
+    const html = `<p><strong>${bold}</strong></p><p>${text}</p>`;//preparing the template
 
   const mailOptions = {
     from: `"triply" <${process.env.EMAIL_USER}>`,
@@ -25,7 +25,7 @@ export async function sendMail({ to, subject,bold, text }) {
     html,
   };
 
-  return transporter.sendMail(mailOptions);
+  return transporter.sendMail(mailOptions); //using the transporter object to send the request
 }
 
 

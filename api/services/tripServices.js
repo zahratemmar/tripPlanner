@@ -98,10 +98,8 @@ export async function getTrips(location,userId,userType,flag) {
     
  
     export async function addService(serviceData,service) {
-        const {leader} = await launchConsensus()
-        console.log("serviceData",serviceData) 
-        serviceData.bankUrl = await getBankUrl(serviceData.id)
-        console.log(serviceData) 
+        const {leader} = await launchConsensus() // contacts the network to launch a consensus and returns a leader node
+        serviceData.bankUrl = await getBankUrl(serviceData.id) //pulling the paypal address to ditribute payments later
         const body = {
             serviceData ,
             service 
@@ -112,8 +110,7 @@ export async function getTrips(location,userId,userType,flag) {
             method : 'POST',
             body : body,
             json : true
-        };
-        console.log("------------------------------------------------------------")
+        };//sending a request to add the service to the leader
         const result = await rp(registerOption);
         if(result.trip){
             const data = {
@@ -135,7 +132,7 @@ export async function getTrips(location,userId,userType,flag) {
                 result.trip.transactions.guideData.gid
             ]
             const mailData=await newTrip(data)
-            bunchmail(servicesIds,mailData)
+            //bunchmail(servicesIds,mailData)
             result.trip = data
         }
         return result
@@ -170,7 +167,7 @@ try{
         }
 
         const mailData=await participation(tripCoords)
-        bunchmail([userId],mailData)
+        //bunchmail([userId],mailData)
 
         return ({
             status: 1,
@@ -208,8 +205,8 @@ export async function launchVerification(){
     await db.update(users)
     .set({ totalTrips: sql`${users.totalTrips} + 1` })
     .where(inArray(users.id, result.allIds));
-    //sendBatchPayouts(result)
-
+    //sendBatchPayouts(result.paymentResults)
+    return result.test
 }
 
  
@@ -229,7 +226,7 @@ export async function cancelTrip(tripId,userId){
     console.log("Result from node:", result);
     const userIds = result.participators.map(user => user.participator)
     const mailData = await tripCancelled(result.tripData)
-    //bunchmail(userIds,mailData)  
+    //bunchmail(userIds,mailData)  //emailing the participators with the cancelation news
    const paybackData = await Promise.all(
         result.participators.map(async (user) => {
             const bankUrl = await getBankUrl(user.participator);
@@ -238,15 +235,14 @@ export async function cancelTrip(tripId,userId){
                 amount: user.amount,
             };
         })
-    );
+    )//this promisses pull the participators bankurl so they the api would repay them 
     await db.update(users)
     .set({ 
         totalTrips: sql`${users.totalTrips} + 1`,
         totalFails: sql`${users.totalFails} + 1` 
      })
-    .where(eq(users.id, userId));
-
-    //sendBatchPayouts(paybackData)
+    .where(eq(users.id, userId));//altering db for decreasing the rating
+    sendBatchPayouts(paybackData)//paying back the participators
     return result
 }catch(err){
     console.error(err);

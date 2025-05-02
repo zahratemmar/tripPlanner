@@ -1,5 +1,5 @@
 const { createGenesisBlocks } = require("./genesis");
-const { addService, addParticipation , getService } = require("./transactions");
+const { addService, addParticipation , getService ,cancelTrip} = require("./transactions");
 const { verifySmartContracts, executePayment } = require("./payments");
 const { 
     getLastBlock, 
@@ -10,7 +10,8 @@ const {
     isvalidBlock,
     verifyleader,
     deleteUsedServices,
-    verifyChains
+    verifyChains,
+    pullValidTrips
 } = require("./utils");
 
 function Blockchain(nodeUrl,port) {
@@ -20,13 +21,16 @@ function Blockchain(nodeUrl,port) {
     this.currentNodeReputation = 0;
     this.currentNodeRoles = null;
     this.networkNodes = [];
-    this.files = {
+    this.allNodes = [];
+    this.consensusLeaders = [];
+       this.files = {
         guides : "db/"+port+"/guides.json",
         transport : "db/"+port+"/transport.json",  
         houses : "db/"+port+"/houses.json", 
         trips : "db/"+port+"/trips.json",  
         payments : "db/"+port+"/payments.json",
         keys : "db/"+port+"/keys.json",
+        description : "db/"+port+"/description.json",
         test :  "db/"+port+"/testResult.json"
     }
     this.publicKey = null;
@@ -46,6 +50,7 @@ Blockchain.prototype.deleteUsedServices = deleteUsedServices;
 Blockchain.prototype.verifyChains=verifyChains
 Blockchain.prototype.verifyleader= verifyleader 
 Blockchain.prototype.getService=getService
-
+Blockchain.prototype.pullValidTrips = pullValidTrips
+Blockchain.prototype.cancelTrip=cancelTrip
 
 module.exports = Blockchain;

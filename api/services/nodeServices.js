@@ -23,16 +23,17 @@ export async function getRandomNode() {
 export async function registerNode(newNode) {
     try {
         const data =await fs.readFile(file, 'utf8')
-        const nodes = JSON.parse(data)
-        if (nodes.some(node => node.url === newNode.url)) {
-            return { status : -1 ,message: "Node already registered" }
+        const nodes = JSON.parse(data) //pulling the node from the database
+        const dataNode = await getRandomNode();//getting a random node to register the new one in the network
+        if (! nodes.some(node => node.url === newNode.url)) {//ignore the new node request if the node is on system
+          nodes.push(newNode)//pushing the new node
+          await fs.writeFile(file, JSON.stringify(nodes, null, 2));//saving the data
         }
-        const dataNode = await getRandomNode();
-        console.log("chosen node "+ dataNode)
-        nodes.push(newNode)
-        await fs.writeFile(file, JSON.stringify(nodes, null, 2));
-        console.log("Node registered successfully:", newNode);
+        if(!dataNode)
+          return { status : -1 ,message: "system just started , no data to receive" }
+
         return {status : 1, message: "Node registered successfully", dataNode : dataNode.url};
+        //returning the random node to finish registering 
       } catch (err) {
         console.error(err);
         return { status : -1 ,message: "Server error" }

@@ -12,6 +12,7 @@ class TripPlanner {
         this.housesFile = `db/${this.port}/houses.json`;
         this.test = `db/${this.port}/testResult.json`;
         this.keys = `db/${this.port}/keys.json`;
+        this.descriptionFile = `db/${this.port}/description.json`;
         this.transportFile = `db/${this.port}/transport.json`;
         this.guidesFile = `db/${this.port}/guides.json`;
         this.tripsFile = `db/${this.port}/trips.json`;
@@ -31,6 +32,10 @@ class TripPlanner {
 
     addHousing(hid, location, startDate, endDate, price,spots,bankUrl) {
         let houses = this.readData(this.housesFile);
+        let discs = this.readData(this.descriptionFile);
+        const description = discs.find(disc => disc.id === hid);
+        discs = discs.filter(disc => disc.id !== hid);
+        this.writeData(this.descriptionFile, discs);
         const house = { 
             id: uuidv4(), 
             hid, location, 
@@ -39,6 +44,7 @@ class TripPlanner {
             price ,
             spots,
             bankUrl,
+            description:description.description,
             timestamp: Date.now(),
         }
         houses.push(house);
@@ -48,6 +54,11 @@ class TripPlanner {
 
     addTransportation(tid, location, startDate, endDate, price,spots,bankUrl) {
         let transports = this.readData(this.transportFile);
+        let discs = this.readData(this.descriptionFile);
+        const description = discs.find(disc => disc.id === tid);
+        discs = discs.filter(disc => disc.id !== tid);
+        this.writeData(this.descriptionFile, discs);
+
         const transport = { 
             id: uuidv4(), 
             tid, 
@@ -57,6 +68,7 @@ class TripPlanner {
             price ,
             spots,
             bankUrl,
+            description:description.description,
             timestamp: Date.now()
         }
        
@@ -67,6 +79,11 @@ class TripPlanner {
 
     addGuiding(gid, location, startDate, endDate, price,spots,bankUrl) {
         let guides = this.readData(this.guidesFile);
+        let discs = this.readData(this.descriptionFile);
+        const description = discs.find(disc => disc.id === gid);
+        discs = discs.filter(disc => disc.id !== gid);
+        this.writeData(this.descriptionFile, discs);
+
         const guide = { 
             id: uuidv4(), 
             gid, 
@@ -76,6 +93,7 @@ class TripPlanner {
             price ,
             spots,
             bankUrl,
+            description:description.description,
             timestamp: Date.now()
         }
         guides.push(guide);
@@ -138,20 +156,22 @@ class TripPlanner {
         let guides = this.readData(this.guidesFile);
         let trips = this.readData(this.tripsFile);
         let newtrip = false;
-        for (let house of houses) {
-            for (let trans of transport) {
+        for (let house of houses) {//going through house services
+            for (let trans of transport) {//going through transport services
                 if (house.location === trans.location && this.doDatesOverlap(trans.startDate, trans.endDate, house.startDate, house.endDate)) {
-                    for (let guidee of guides) {
+                    //checking the location and date overlap
+                    for (let guidee of guides) {//going through guide services
                         if (guidee.location === house.location && this.doDatesOverlap(guidee.startDate, guidee.endDate, house.startDate, house.endDate)) {
                             let startdate = this.starting(guidee.startDate, trans.startDate, house.startDate);
                             let enddate = this.ending(guidee.endDate, trans.endDate, house.endDate);
                             let exists = trips.some(trip => 
                                 this.doDatesOverlap(startdate, enddate, trip.startDate, trip.endDate) ||
                                 trip.location === guidee.location
-                            );
+                            );//checing if there is a similar trip to the one generated
                             if (!exists) {
                                 let price = (trans.price + guidee.price + house.price) * (enddate - startdate)/ (1000 * 60 * 60 * 24);
                                 let spots = this.ending(guidee.spots, trans.spots, house.spots);
+                                //calculating the cost,number of spots and the dates
                                 let tripData = {
                                     id : uuidv4(),
                                     tid :trans.id,
@@ -165,19 +185,19 @@ class TripPlanner {
                                     spots,
                                     participators : []
                                 }
-                                const trip = this.addPlannedTrip(tripData,trans ,house,guidee);
-                                console.log(JSON.stringify(trip))
+                                const trip = this.addPlannedTrip(tripData,trans ,house,guidee);//adding the trip by mining a block
+                                console.log(JSON.stringify(trip))//returning the trip as STDOUT for the node to catch it
                                 newtrip = true;
                                 this.removeData(this.guidesFile, guides.indexOf(guidee));
                                 this.removeData(this.housesFile, houses.indexOf(house));
-                                this.removeData(this.transportFile, transport.indexOf(trans));
+                                this.removeData(this.transportFile, transport.indexOf(trans));//removing the matched services
                             }
                         }
                     }
                 }
             }
         }
-    if (!newtrip) console.log(JSON.stringify(service)); 
+    if (!newtrip) console.log(JSON.stringify(service)); //in case there's no trip , returning the service as STDOUT for the node to catch it
     }
 }
 
@@ -188,7 +208,7 @@ tripPlanner = new TripPlanner(process.argv[10])
 
 if(process.argv[2] == "house") 
      tripPlanner.addHousing(
-    parseInt(process.argv[3],10),
+    process.argv[3],
     process.argv[4],
     parseInt(process.argv[5],10),
     parseInt(process.argv[6],10),
@@ -199,7 +219,7 @@ if(process.argv[2] == "house")
 
 if(process.argv[2] == "guide")
      tripPlanner.addGuiding(
-        parseInt(process.argv[3],10),
+        process.argv[3],
         process.argv[4],
         parseInt(process.argv[5],10),
         parseInt(process.argv[6],10),
@@ -210,7 +230,7 @@ if(process.argv[2] == "guide")
     )
 if(process.argv[2] == "transport")
      tripPlanner.addTransportation(
-        parseInt(process.argv[3],10),
+        process.argv[3],
         process.argv[4],
         parseInt(process.argv[5],10),
         parseInt(process.argv[6],10),

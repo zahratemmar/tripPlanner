@@ -4,7 +4,7 @@ const readline = require('readline');
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
-});
+});   
 
 // Function to delay execution
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -14,17 +14,19 @@ async function sendRequests() {
 
     // Send requests with a delay between them
     registerOption = {
-        uri: 'http://localhost:3001/addHost',
+        uri: 'http://localhost:3000/addService',
         method: 'POST',
         body: {
-            hostData: {
-                id: 765,
-                location: "oran3",
-                startDate: 1742037667000,
-                endDate: 1742901667000,
+            service : "house",
+            serviceData: {
+                id: "765",
+                location: "oran",
+                startDate: 1745037667000,
+                endDate: 1746901667000,
                 price: 4,
                 spots: 7,
-                bankUrl: "bankkofhost"
+                bankUrl: "bankkofhost",
+                description : "testttt"
             }
         },
         json: true
@@ -33,25 +35,27 @@ async function sendRequests() {
     console.log("Sent addHost request");
     await delay(1000); // Wait 1 second
 
-    registerOption.uri = 'http://localhost:3001/addTransport';
+    registerOption.body.service = 'transport';
+    
     await rp(registerOption);
     console.log("Sent addTransport request");
     await delay(1000);
 
-    registerOption.uri = 'http://localhost:3001/addGuide';
+    registerOption.body.service = 'guide';
     await rp(registerOption);
     console.log("Sent addGuide request");
     await delay(1000);
 
     rl.question('trip id: ', async (id) => {
         registerOption = {
-            uri: 'http://localhost:3001/addParticipation',
+            uri: 'http://localhost:3001/participate',
             method: 'POST',
             body: {
                 participationData: {
                     tripId: id,
                     participator: "participationId2",
-                    amount: 1000
+                    amount: 10000,
+                    spots : 2
                 }
             },
             json: true
@@ -67,7 +71,7 @@ async function sendRequests() {
 
         await delay(1000);
         registerOption = {
-            uri: 'http://localhost:3001/verifySmartContracts',
+            uri: 'http://localhost:3000/verify',
             method: 'POST',
             body: {
             },
@@ -84,4 +88,5 @@ async function sendRequests() {
     });
 }
 
-sendRequests();
+await sendRequests();
+await verify()

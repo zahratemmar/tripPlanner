@@ -2,7 +2,7 @@
 
 
 keys.json
-
+/db
 # dependencies
 /node_modules
 /.pnp

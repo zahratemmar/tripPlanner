@@ -1,28 +1,29 @@
 
 
 class PayementDist{
-    constructor(amount,Id,length){
+    constructor(amount,Id,length,spots){
         this.margin = amount
         this.tripId = Id
         this.tripLength = length
+        this.spots = spots
     }
     ditributePayments(ditributionData){
-        const ditribution = [
+        const ditribution = [//calculating and pushing the amounts to be payed linked with the bankURL
             {
                 bankUrl :ditributionData.transport.tid,
-                amount: ditributionData.transport.amount*this.tripLength
+                amount: ditributionData.transport.amount*this.tripLength*this.spots
             },
             {
                 bankUrl :ditributionData.house.hid,
-                amount: ditributionData.house.amount*this.tripLength
+                amount: ditributionData.house.amount*this.tripLength*this.spots
             },
             {
                 bankUrl :ditributionData.guide.gid,
-                amount: ditributionData.guide.amount*this.tripLength
+                amount: ditributionData.guide.amount*this.tripLength*this.spots
             }
         ]
         this.margin=this.margin-this.tripLength*(ditributionData.guide.amount+ditributionData.house.amount+ditributionData.transport.amount)
-        return {
+        return {//returning the ditribution for the api
             tripId : this.tripId,
             ditribution,
             margin : this.margin
@@ -53,7 +54,7 @@ const ditributionData = {
 const tripId = process.argv[2]
 const participationAmount = parseInt(process.argv[3] ,10)
 const tripLength = parseInt(process.argv[4],10)
-
-payementDist = new PayementDist(participationAmount,tripId,tripLength)
+const spots = parseInt(process.argv[11],10)
+payementDist = new PayementDist(participationAmount,tripId,tripLength,spots)
 const result = payementDist.ditributePayments(ditributionData)
 console.log(JSON.stringify(result))

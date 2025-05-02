@@ -35,15 +35,14 @@ const getAccessToken = async () => {
 
 
 export const sendBatchPayouts = async (recipients) => {
-  const accessToken = await getAccessToken();
-
-  const payoutBody = {
+  const accessToken = await getAccessToken();//getting the authentification token using the paypal credintials
+  const payoutBody = {//preparing the body
     sender_batch_header: {
       sender_batch_id: `batch_${Date.now()}`,
       email_subject: "You have a payout!",
       email_message: "You've received a payout from triply!"
     },
-    items: recipients.map((recipient, index) => ({
+    items: recipients.map((recipient, index) => ({//defining the recipients , the amount and a note
       recipient_type: "EMAIL",
       amount: {
         value: recipient.amount,
@@ -62,7 +61,7 @@ export const sendBatchPayouts = async (recipients) => {
       'Authorization': `Bearer ${accessToken}`
     },
     body: JSON.stringify(payoutBody)
-  });
+  });//sending the payout request
 
   const result = await response.json();
   console.log(result);
